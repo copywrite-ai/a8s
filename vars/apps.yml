@@ -1,0 +1,24 @@
+app_definitions:
+  nginx_demo:
+    image: nginx:alpine
+    ports:
+      - "8081:80"
+    volumes:
+      - "/tmp/nginx_demo/html:/usr/share/nginx/html"
+    materials:
+      - type: file
+        src: "materials/index.html"
+        dest: "/tmp/nginx_demo/html/index.html"
+        owner: "peng"
+        group: "staff"
+        mode: "0644"
+    raw_command: >-
+      docker run -d 
+      --name nginx_demo 
+      --restart always 
+      -p 8081:80 
+      -v /tmp/nginx_demo/html:/usr/share/nginx/html 
+      --health-cmd="wget -q --spider http://localhost:80 || exit 1" 
+      --health-interval=5s 
+      --health-retries=3 
+      nginx:alpine

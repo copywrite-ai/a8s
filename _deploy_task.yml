@@ -1,0 +1,117 @@
+- name: "Load config for {{ item_plan.app_name }}"
+  set_fact:
+    current_app: "{{ app_definitions[item_plan.app_name] }}"
+    healthcheck_config: "{{ current_app.healthcheck | default({}) }}"
+
+# 2. 物料分发
+- name: "Sync directory materials using modular task"
+  include_tasks: sync_v2.yml
+  vars:
+    sync_src: "{{ item.src }}"
+    sync_dest: "{{ item.dest }}"
+    sync_owner: "{{ item.owner | default('root') }}"
+    sync_group: "{{ item.group | default('root') }}"
+    sync_mode: "{{ item.mode | default('0755') }}"
+    delegate_host: "{{ item_plan.target_ip }}"
+  when: 
+    - current_app.materials is defined
+    - item.type == 'archive_dir'
+  loop: "{{ current_app.materials | default([]) }}"
+  loop_control:
+    loop_var: item
+
+# 2.1 单文件物料分发
+- name: "[{{ item_plan.target_ip }}] Ensure parent directory exists for config files"
+  file:
+    path: "{{ item.dest | dirname }}"
+    state: directory
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: '0755'
+  when: 
+    - current_app.materials is defined
+    - item.type == 'file'
+  loop: "{{ current_app.materials | default([]) }}"
+  delegate_to: "{{ item_plan.target_ip }}"
+
+- name: "[{{ item_plan.target_ip }}] Distribute config files"
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('0644') }}"
+    force: yes
+    backup: yes
+    remote_src: false
+  when: 
+    - current_app.materials is defined
+    - item.type == 'file'
+  loop: "{{ current_app.materials | default([]) }}"
+  delegate_to: "{{ item_plan.target_ip }}"
+
+# 3. 准备启动命令 (支持多行port和volume)
+- name: "Prepare Run Command"
+  set_fact:
+    final_run_cmd: >-
+      {% if current_app.raw_command is defined %}
+        {{ current_app.raw_command | regex_replace('\n', ' ') }}
+      {% else %}
+        {# --- 自动拼接逻辑开始 --- #}
+        docker run -d 
+        --name {{ item_plan.app_name }} 
+        --restart always 
+        {# 多ports支持 #}
+        {% if current_app.ports is defined %}
+          {% for port in current_app.ports %}
+        -p {{ port }}
+          {% endfor %}
+        {% endif %}
+        {# 多volumes支持 #}
+        {% for volume in current_app.volumes | default([]) %}
+        -v {{ volume }} 
+        {% endfor %}
+        {# 环境变量 #}
+        {% if current_app.env is defined %}
+          {% for k,v in current_app.env.items() %} 
+        -e {{ k }}='{{ v }}' 
+          {% endfor %}
+        {% endif %}
+        {# 多env_file支持 #}
+        {% for env in current_app.env_file | default([]) %}
+        --env-file {{ env }} 
+        {% endfor %}
+        {{ current_app.image }}
+        {# --- 自动拼接逻辑结束 --- #}
+      {% endif %}
+
+# 4. 精确替换续行符（仅处理 \\ 后跟空格的模式）
+- name: "Flatten Command String"
+  set_fact:
+    final_run_cmd: "{{ final_run_cmd | regex_replace('\\\\s+', ' ') }}"
+
+# 5. 打印最终命令 (调试确认)
+- name: "DEBUG | Command Preview"
+  debug:
+    msg: "Executing: {{ final_run_cmd }}"
+
+# 6. 清理旧容器
+- name: "[{{ item_plan.target_ip }}] Cleanup old container: {{ item_plan.app_name }}"
+  shell: "docker rm -f {{ item_plan.app_name }} || true"
+  delegate_to: "{{ item_plan.target_ip }}"
+  ignore_errors: true 
+
+# 7. 执行启动
+- name: "[{{ item_plan.target_ip }}] Run Container: {{ item_plan.app_name }}"
+  shell: "{{ final_run_cmd }}"
+  delegate_to: "{{ item_plan.target_ip }}"
+
+# 8. 使用模块化健康检查
+- name: "HealthCheck | Wait for container to be ready"
+  include_tasks: healthcheck_v2.yml
+  vars:
+    app_name: "{{ item_plan.app_name }}"
+    delegate_host: "{{ item_plan.target_ip }}"
+    retries: "{{ healthcheck_config.retries | default(30) }}"
+    interval: "{{ healthcheck_config.interval | default(5) }}"
+    debug_mode: true  # 可选：开启调试模式

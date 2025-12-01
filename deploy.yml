@@ -1,0 +1,18 @@
+- name: Master Orchestration
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/apps.yml
+    - vars/plan.yml
+
+  tasks:
+    - name: "Starting Deployment Sequence (Total: {{ deploy_sequence | length }} steps)"
+      debug:
+        msg: "Plan loaded. Starting execution..."
+
+    # 循环读取计划表，调用子任务
+    - name: Process Deployment Plan
+      include_tasks: _deploy_task.yml
+      loop: "{{ deploy_sequence }}"
+      loop_control:
+        loop_var: item_plan

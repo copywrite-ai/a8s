@@ -1,0 +1,74 @@
+- name: "[Local] Check if source is file or directory"
+  stat:
+    path: "{{ sync_src }}"
+  register: src_stat
+  delegate_to: localhost
+
+- block:
+    # 处理目录分发
+    - name: "[Local] Archive Src Directory"
+      archive:
+        path: "{{ sync_src }}"
+        dest: /tmp/ansible_{{ sync_src | basename }}.tar.gz
+      delegate_to: localhost
+
+    - name: "[{{ delegate_host | default('localhost') }}] Copy archive to target"
+      copy:
+        src: /tmp/ansible_{{ sync_src | basename }}.tar.gz
+        dest: /tmp/
+        owner: root
+        group: root
+        mode: '0644'
+      delegate_to: "{{ delegate_host | default('localhost') }}"
+
+    - name: "[{{ delegate_host | default('localhost') }}] Ensure destination directory exists"
+      file:
+        path: "{{ sync_dest }}"
+        state: directory
+        owner: "{{ sync_owner | default('root') }}"
+        group: "{{ sync_group | default('root') }}"
+        mode: '{{ sync_mode | default("0755") }}'
+      delegate_to: "{{ delegate_host | default('localhost') }}"
+
+    - name: "[{{ delegate_host | default('localhost') }}] Unarchive to destination"
+      unarchive:
+        src: /tmp/ansible_{{ sync_src | basename }}.tar.gz
+        dest: "{{ sync_dest }}"
+        remote_src: yes
+        owner: "{{ sync_owner | default('root') }}"
+        group: "{{ sync_group | default('root') }}"
+        mode: '{{ sync_mode | default("0755") }}'
+      delegate_to: "{{ delegate_host | default('localhost') }}"
+
+    - name: "[Local] Cleanup local temp archive"
+      file:
+        path: /tmp/ansible_{{ sync_src | basename }}.tar.gz
+        state: absent
+      delegate_to: localhost
+
+  when: src_stat.stat.isdir is defined and src_stat.stat.isdir
+
+- block:
+    # 处理单文件分发
+    - name: "[{{ delegate_host | default('localhost') }}] Ensure parent directory exists"
+      file:
+        path: "{{ sync_dest | dirname }}"
+        state: directory
+        owner: "{{ sync_owner | default('root') }}"
+        group: "{{ sync_group | default('root') }}"
+        mode: '0755'
+      delegate_to: "{{ delegate_host | default('localhost') }}"
+
+    - name: "[{{ delegate_host | default('localhost') }}] Copy single file to destination"
+      copy:
+        src: "{{ sync_src }}"
+        dest: "{{ sync_dest }}"
+        owner: "{{ sync_owner | default('root') }}"
+        group: "{{ sync_group | default('root') }}"
+        mode: '{{ sync_mode | default("0644") }}'
+        force: yes
+        backup: yes
+        remote_src: false
+      delegate_to: "{{ delegate_host | default('localhost') }}"
+
+  when: src_stat.stat.isdir is defined and src_stat.stat.isdir == false

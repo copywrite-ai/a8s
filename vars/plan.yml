@@ -1,0 +1,3 @@
+deploy_sequence:
+  - app_name: nginx_demo
+    target_ip: localhost
