@@ -1,3 +1,15 @@
-deploy_sequence:
-  - app_name: nginx_demo
-    target_ip: localhost
+# 分组部署计划
+# Group 1: 基础服务 (DB)
+# Group 2: 业务服务 (Backend) - 在 DB 完成后并行启动
+deploy_groups:
+  - name: "Foundation Services"
+    apps:
+      - app_name: db_mysql_demo
+        target_ip: localhost
+
+  - name: "Business Services"
+    apps:
+      - app_name: app_backend_1
+        target_ip: localhost
+      - app_name: app_backend_2
+        target_ip: localhost
