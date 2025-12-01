@@ -1,0 +1,14 @@
+- name: "Load config for {{ item_plan.app_name }}"
+  set_fact:
+    current_app: "{{ app_definitions[item_plan.app_name] }}"
+    healthcheck_config: "{{ current_app.healthcheck | default({}) }}"
+
+# 8. 使用模块化健康检查
+- name: "HealthCheck | Wait for container to be ready"
+  include_tasks: healthcheck_v2.yml
+  vars:
+    app_name: "{{ item_plan.app_name }}"
+    delegate_host: "{{ item_plan.target_ip }}"
+    retries: "{{ healthcheck_config.retries | default(30) }}"
+    interval: "{{ healthcheck_config.interval | default(5) }}"
+    debug_mode: true

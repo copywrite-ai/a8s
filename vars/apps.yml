@@ -1,24 +1,53 @@
 app_definitions:
-  nginx_demo:
-    image: nginx:alpine
-    ports:
-      - "8081:80"
-    volumes:
-      - "/tmp/nginx_demo/html:/usr/share/nginx/html"
-    materials:
-      - type: file
-        src: "materials/index.html"
-        dest: "/tmp/nginx_demo/html/index.html"
-        owner: "peng"
-        group: "staff"
-        mode: "0644"
+  # 1. 模拟数据库 (依赖基础)
+  db_mysql:
+    image: alpine:latest
     raw_command: >-
       docker run -d 
-      --name nginx_demo 
+      --name db_mysql 
       --restart always 
-      -p 8081:80 
-      -v /tmp/nginx_demo/html:/usr/share/nginx/html 
-      --health-cmd="wget -q --spider http://localhost:80 || exit 1" 
-      --health-interval=5s 
-      --health-retries=3 
+      alpine:latest 
+      sh -c "echo 'Initializing DB...'; sleep 10; echo 'DB Ready' > /tmp/db_ready; tail -f /dev/null"
+    # 健康检查：检测文件是否存在，模拟数据库启动耗时
+    healthcheck:
+      retries: 20
+      interval: 2
+    # 由于alpine没有healthcheck指令，我们需要在run命令中注入或者依赖外部检测
+    # 这里演示利用 docker inspect 健康检查配置 (requires docker engine support)
+    # 或者我们可以简单点，用 raw_command 配合 --health-cmd
+    # Alpine default sh is available.
+    # 注意: --health-cmd 在 docker run 中使用
+  
+  # 我们还是用 raw_command 显式写 health-cmd 方便测试
+  # 重写 db_mysql 以包含 health-cmd
+  db_mysql_demo:
+    image: alpine:latest
+    raw_command: >-
+      docker run -d 
+      --name db_mysql_demo
+      --health-cmd="test -f /tmp/db_ready || exit 1"
+      --health-interval=2s
+      --health-retries=10
+      alpine:latest 
+      sh -c "rm -f /tmp/db_ready; echo 'Init DB...'; sleep 5; echo 'DB Ready' > /tmp/db_ready; tail -f /dev/null"
+
+  # 2. 模拟应用 (依赖 DB)
+  app_backend_1:
+    image: nginx:alpine
+    ports:
+      - "8082:80"
+    raw_command: >-
+      docker run -d --name app_backend_1 -p 8082:80 
+      --health-cmd="wget -q --spider http://localhost:80 || exit 1"
+      --health-interval=2s --health-retries=3
+      nginx:alpine
+
+  app_backend_2:
+    image: nginx:alpine
+    ports:
+      - "8083:80"
+    raw_command: >-
+      docker run -d --name app_backend_2 -p 8083:80 
+      --health-cmd="wget -q --spider http://localhost:80 || exit 1"
+      --health-interval=2s --health-retries=3
       nginx:alpine

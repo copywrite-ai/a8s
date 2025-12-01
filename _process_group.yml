@@ -1,0 +1,17 @@
+- name: "Processing Group: {{ group_item.name }}"
+  debug:
+    msg: "Starting deployment for group '{{ group_item.name }}' with {{ group_item.apps | length }} apps."
+
+# Phase 1: Trigger/Start all apps in this group
+- name: "[Group: {{ group_item.name }}] Trigger Start Sequence"
+  include_tasks: _deploy_start.yml
+  loop: "{{ group_item.apps }}"
+  loop_control:
+    loop_var: item_plan
+
+# Phase 2: Verify all apps in this group
+- name: "[Group: {{ group_item.name }}] Trigger Health Checks"
+  include_tasks: _deploy_verify.yml
+  loop: "{{ group_item.apps }}"
+  loop_control:
+    loop_var: item_plan

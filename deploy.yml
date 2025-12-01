@@ -6,13 +6,13 @@
     - vars/plan.yml
 
   tasks:
-    - name: "Starting Deployment Sequence (Total: {{ deploy_sequence | length }} steps)"
+    - name: "Starting Deployment Sequence (Total Groups: {{ deploy_groups | length }})"
       debug:
-        msg: "Plan loaded. Starting execution..."
+        msg: "Plan loaded. Starting grouped execution..."
 
-    # 循环读取计划表，调用子任务
-    - name: Process Deployment Plan
-      include_tasks: _deploy_task.yml
-      loop: "{{ deploy_sequence }}"
+    # 循环读取 Group 计划表
+    - name: Process Deployment Groups
+      include_tasks: _process_group.yml
+      loop: "{{ deploy_groups }}"
       loop_control:
-        loop_var: item_plan
+        loop_var: group_item
