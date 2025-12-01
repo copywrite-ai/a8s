@@ -3,6 +3,17 @@
     current_app: "{{ app_definitions[item_plan.app_name] }}"
     healthcheck_config: "{{ current_app.healthcheck | default({}) }}"
 
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | DEBUG | Check Connection Method"
+  debug:
+    msg: 
+      - "Target: {{ item_plan.target_ip }}"
+      - "Connection: {{ ansible_connection | default('ssh (default)') }}"
+      - "Inventory Hostname: {{ inventory_hostname }}"
+  delegate_to: "{{ item_plan.target_ip }}"
+  vars:
+    # Force gather connection var from delegated host context
+    ansible_connection: "{{ hostvars[item_plan.target_ip].ansible_connection | default('ssh (default)') }}"
+
 # 2. 物料分发
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Sync directory materials using modular task"
   include_tasks: sync_v2.yml
