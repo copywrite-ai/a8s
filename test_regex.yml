@@ -1,0 +1,22 @@
+- name: "Test Regex Replacement"
+  hosts: localhost
+  gather_facts: false
+  vars:
+    test_cmd_1: "docker run -d \ 
+    --name test"
+    test_cmd_2: "docker run -d \n    --name test"
+  tasks:
+    - name: "Debug Original"
+      debug:
+        msg: 
+          - "Original 1: '{{ test_cmd_1 }}'"
+          - "Original 2: '{{ test_cmd_2 }}'"
+
+    # 方案 1: 尝试正确转义
+    - name: "Test Scheme 1 - Correct YAML Escaping"
+      set_fact:
+        res_1: "{{ test_cmd_1 | regex_replace('\\\\s*\\n\\s*', ' ') }}"
+      
+    - name: "Debug Result 1"
+      debug:
+        msg: "Result 1: '{{ res_1 }}'"

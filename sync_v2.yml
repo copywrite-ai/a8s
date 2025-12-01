@@ -1,4 +1,4 @@
-- name: "[Local] Check if source is file or directory"
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | {{ item_plan.app_name | default('N/A') }} | [Local] Check if source is file or directory"
   stat:
     path: "{{ sync_src }}"
   register: src_stat
@@ -6,13 +6,13 @@
 
 - block:
     # 处理目录分发
-    - name: "[Local] Archive Src Directory"
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | {{ item_plan.app_name | default('N/A') }} | [Local] Archive Src Directory"
       archive:
         path: "{{ sync_src }}"
         dest: /tmp/ansible_{{ sync_src | basename }}.tar.gz
       delegate_to: localhost
 
-    - name: "[{{ delegate_host | default('localhost') }}] Copy archive to target"
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host | default('localhost') }} | {{ item_plan.app_name | default('N/A') }} | Copy archive to target"
       copy:
         src: /tmp/ansible_{{ sync_src | basename }}.tar.gz
         dest: /tmp/
@@ -21,7 +21,7 @@
         mode: '0644'
       delegate_to: "{{ delegate_host | default('localhost') }}"
 
-    - name: "[{{ delegate_host | default('localhost') }}] Ensure destination directory exists"
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host | default('localhost') }} | {{ item_plan.app_name | default('N/A') }} | Ensure destination directory exists"
       file:
         path: "{{ sync_dest }}"
         state: directory
@@ -30,7 +30,7 @@
         mode: '{{ sync_mode | default("0755") }}'
       delegate_to: "{{ delegate_host | default('localhost') }}"
 
-    - name: "[{{ delegate_host | default('localhost') }}] Unarchive to destination"
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host | default('localhost') }} | {{ item_plan.app_name | default('N/A') }} | Unarchive to destination"
       unarchive:
         src: /tmp/ansible_{{ sync_src | basename }}.tar.gz
         dest: "{{ sync_dest }}"
@@ -40,7 +40,7 @@
         mode: '{{ sync_mode | default("0755") }}'
       delegate_to: "{{ delegate_host | default('localhost') }}"
 
-    - name: "[Local] Cleanup local temp archive"
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | {{ item_plan.app_name | default('N/A') }} | [Local] Cleanup local temp archive"
       file:
         path: /tmp/ansible_{{ sync_src | basename }}.tar.gz
         state: absent
@@ -50,7 +50,7 @@
 
 - block:
     # 处理单文件分发
-    - name: "[{{ delegate_host | default('localhost') }}] Ensure parent directory exists"
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host | default('localhost') }} | {{ item_plan.app_name | default('N/A') }} | Ensure parent directory exists"
       file:
         path: "{{ sync_dest | dirname }}"
         state: directory
@@ -59,7 +59,7 @@
         mode: '0755'
       delegate_to: "{{ delegate_host | default('localhost') }}"
 
-    - name: "[{{ delegate_host | default('localhost') }}] Copy single file to destination"
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host | default('localhost') }} | {{ item_plan.app_name | default('N/A') }} | Copy single file to destination"
       copy:
         src: "{{ sync_src }}"
         dest: "{{ sync_dest }}"

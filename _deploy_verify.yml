@@ -1,10 +1,10 @@
-- name: "Load config for {{ item_plan.app_name }}"
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Load config"
   set_fact:
     current_app: "{{ app_definitions[item_plan.app_name] }}"
     healthcheck_config: "{{ current_app.healthcheck | default({}) }}"
 
 # 8. 使用模块化健康检查
-- name: "HealthCheck | Wait for container to be ready"
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | HealthCheck | Wait for container to be ready"
   include_tasks: healthcheck_v2.yml
   vars:
     app_name: "{{ item_plan.app_name }}"

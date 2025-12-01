@@ -6,12 +6,12 @@
     - vars/plan.yml
 
   tasks:
-    - name: "Starting Deployment Sequence (Total Groups: {{ deploy_groups | length }})"
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Master | Starting Deployment Sequence (Total Groups: {{ deploy_groups | length }})"
       debug:
         msg: "Plan loaded. Starting grouped execution..."
 
     # 循环读取 Group 计划表
-    - name: Process Deployment Groups
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Master | Process Deployment Groups"
       include_tasks: _process_group.yml
       loop: "{{ deploy_groups }}"
       loop_control:

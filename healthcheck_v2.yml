@@ -1,5 +1,5 @@
 ---
-- name: "HealthCheck | Check if health status is available"
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Check if health status is available"
   shell: |
     # 直接尝试获取健康状态，如果命令成功且有输出，说明有健康检查
     health_status=$(docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' {{ app_name }} 2>/dev/null || echo "no_healthcheck")
@@ -13,7 +13,7 @@
   delegate_to: "{{ delegate_host }}"
   changed_when: false
 
-- name: "DEBUG | 显示健康检查判断结果"
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | DEBUG | 显示健康检查判断结果"
   debug:
     msg: 
       - "健康状态值: '{{ healthcheck_type.stdout }}'"
@@ -21,7 +21,7 @@
   delegate_to: "{{ delegate_host }}"
   when: debug_mode | default(false)
 
-- name: "HealthCheck | Wait for container with healthcheck"
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for container with healthcheck"
   shell: "docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' {{ app_name }}"
   register: health_status
   until: health_status.stdout == "healthy"
@@ -30,7 +30,7 @@
   delegate_to: "{{ delegate_host }}"
   when: healthcheck_type.stdout_lines[-1] == "has_healthcheck"
 
-- name: "HealthCheck | Wait for one-time container to complete"
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for one-time container to complete"
   shell: |
     if docker inspect {{ app_name }} >/dev/null 2>&1; then
       status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ app_name }})
