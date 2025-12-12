@@ -1,0 +1,20 @@
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Summary | Collect Deployment Info"
+  set_fact:
+    deployment_summary: []
+
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Summary | Iterate Groups"
+  include_tasks: _summary_per_app.yml
+  loop: "{{ deploy_groups }}"
+  loop_control:
+    loop_var: group_item
+
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Summary | Print Deployment Table"
+  debug:
+    msg: |
+      ----------------------------------------------------------------------------------------------------------------
+      Application          | DeploymentIP    | ImageID                                                          | OriginalImageAddress
+      ---------------------|-----------------|------------------------------------------------------------------|---------------------
+      {% for item in deployment_summary %}
+      {{ '%-20s' | format(item.app) }} | {{ '%-15s' | format(item.ip) }} | {{ '%-64s' | format(item.image_id) }} | {{ item.image_source }}
+      {% endfor %}
+      ----------------------------------------------------------------------------------------------------------------

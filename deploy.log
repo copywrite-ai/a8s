@@ -1,0 +1,347 @@
+
+PLAY [Master Orchestration] ****************************************************
+
+TASK [17:08:29 | localhost | Master | Starting Deployment Sequence (Total Groups: 2)] ***
+Friday 12 December 2025  17:08:29 +0800 (0:00:00.018)       0:00:00.018 ******* 
+ok: [localhost] => 
+  msg: Plan loaded. Starting grouped execution...
+
+TASK [17:08:29 | localhost | Master | Process Deployment Groups] ***************
+Friday 12 December 2025  17:08:29 +0800 (0:00:00.012)       0:00:00.031 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_process_group.yml for localhost => (item={'name': 'Foundation Services', 'apps': [{'app_name': 'db_mysql_demo', 'target_ip': 'localhost'}]})
+included: /Users/peng/Documents/code/2025-workspace/ansible/_process_group.yml for localhost => (item={'name': 'Business Services', 'apps': [{'app_name': 'app_backend_1', 'target_ip': 'localhost'}, {'app_name': 'app_backend_2', 'target_ip': 'localhost'}]})
+
+TASK [17:08:29 | localhost | Group: Foundation Services | Processing Group] ****
+Friday 12 December 2025  17:08:29 +0800 (0:00:00.018)       0:00:00.049 ******* 
+ok: [localhost] => 
+  msg: Starting deployment for group 'Foundation Services' with 1 apps.
+
+TASK [17:08:29 | localhost | Group: Foundation Services | Trigger Start Sequence] ***
+Friday 12 December 2025  17:08:29 +0800 (0:00:00.014)       0:00:00.064 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_deploy_start.yml for localhost => (item={'app_name': 'db_mysql_demo', 'target_ip': 'localhost'})
+
+TASK [17:08:29 | localhost | db_mysql_demo | Load config] **********************
+Friday 12 December 2025  17:08:29 +0800 (0:00:00.017)       0:00:00.081 ******* 
+ok: [localhost]
+
+TASK [17:08:30 | localhost | db_mysql_demo | DEBUG | Check Connection Method] ***
+Friday 12 December 2025  17:08:30 +0800 (0:00:00.028)       0:00:00.109 ******* 
+ok: [localhost] => 
+  msg:
+  - 'Target: localhost'
+  - 'Connection: local'
+  - 'Inventory Hostname: localhost'
+
+TASK [17:08:30 | localhost | db_mysql_demo | Sync directory materials using modular task] ***
+Friday 12 December 2025  17:08:30 +0800 (0:00:00.019)       0:00:00.129 ******* 
+skipping: [localhost]
+
+TASK [17:08:30 | localhost | db_mysql_demo | Ensure parent directory exists for config files] ***
+Friday 12 December 2025  17:08:30 +0800 (0:00:00.012)       0:00:00.141 ******* 
+skipping: [localhost]
+
+TASK [17:08:30 | localhost | db_mysql_demo | Distribute config files] **********
+Friday 12 December 2025  17:08:30 +0800 (0:00:00.012)       0:00:00.154 ******* 
+skipping: [localhost]
+
+TASK [17:08:30 | localhost | db_mysql_demo | Prepare Run Command] **************
+Friday 12 December 2025  17:08:30 +0800 (0:00:00.012)       0:00:00.167 ******* 
+ok: [localhost]
+
+TASK [17:08:30 | localhost | db_mysql_demo | Flatten Command String] ***********
+Friday 12 December 2025  17:08:30 +0800 (0:00:00.017)       0:00:00.184 ******* 
+ok: [localhost]
+
+TASK [17:08:30 | localhost | db_mysql_demo | DEBUG | Command Preview] **********
+Friday 12 December 2025  17:08:30 +0800 (0:00:00.013)       0:00:00.198 ******* 
+ok: [localhost] => 
+  msg: |-
+    Executing:   docker run -d  --name db_mysql_demo --health-cmd="test -f /tmp/db_ready || exit 1" --health-interval=2s --health-retries=10 alpine:latest  sh -c "rm -f /tmp/db_ready; echo 'Init DB...'; sleep 5; echo 'DB Ready' > /tmp/db_ready; tail -f /dev/null"
+
+TASK [17:08:30 | localhost | db_mysql_demo | Cleanup old container] ************
+Friday 12 December 2025  17:08:30 +0800 (0:00:00.014)       0:00:00.212 ******* 
+changed: [localhost]
+
+TASK [17:08:30 | localhost | db_mysql_demo | Run Container] ********************
+Friday 12 December 2025  17:08:30 +0800 (0:00:00.462)       0:00:00.675 ******* 
+changed: [localhost]
+
+TASK [17:08:30 | localhost | Group: Foundation Services | Trigger Health Checks] ***
+Friday 12 December 2025  17:08:30 +0800 (0:00:00.406)       0:00:01.081 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_deploy_verify.yml for localhost => (item={'app_name': 'db_mysql_demo', 'target_ip': 'localhost'})
+
+TASK [17:08:31 | localhost | db_mysql_demo | Load config] **********************
+Friday 12 December 2025  17:08:31 +0800 (0:00:00.018)       0:00:01.100 ******* 
+ok: [localhost]
+
+TASK [17:08:31 | localhost | db_mysql_demo | HealthCheck | Wait for container to be ready] ***
+Friday 12 December 2025  17:08:31 +0800 (0:00:00.015)       0:00:01.116 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/healthcheck_v2.yml for localhost
+
+TASK [17:08:31 | localhost | db_mysql_demo | HealthCheck | Check if health status is available] ***
+Friday 12 December 2025  17:08:31 +0800 (0:00:00.014)       0:00:01.131 ******* 
+ok: [localhost]
+
+TASK [17:08:31 | localhost | db_mysql_demo | DEBUG | 显示健康检查判断结果] *****
+Friday 12 December 2025  17:08:31 +0800 (0:00:00.233)       0:00:01.364 ******* 
+ok: [localhost] => 
+  msg:
+  - '健康状态值: ''has_healthcheck'''
+  - '判断结果: has_healthcheck'
+
+TASK [17:08:31 | localhost | db_mysql_demo | HealthCheck | Wait for container with healthcheck] ***
+Friday 12 December 2025  17:08:31 +0800 (0:00:00.016)       0:00:01.380 ******* 
+FAILED - RETRYING: [localhost]: 17:08:31 | localhost | db_mysql_demo | HealthCheck | Wait for container with healthcheck (30 retries left).
+FAILED - RETRYING: [localhost]: 17:08:31 | localhost | db_mysql_demo | HealthCheck | Wait for container with healthcheck (29 retries left).
+changed: [localhost]
+
+TASK [17:08:42 | localhost | db_mysql_demo | HealthCheck | Wait for one-time container to complete] ***
+Friday 12 December 2025  17:08:42 +0800 (0:00:10.731)       0:00:12.112 ******* 
+skipping: [localhost]
+
+TASK [17:08:42 | localhost | Group: Business Services | Processing Group] ******
+Friday 12 December 2025  17:08:42 +0800 (0:00:00.013)       0:00:12.125 ******* 
+ok: [localhost] => 
+  msg: Starting deployment for group 'Business Services' with 2 apps.
+
+TASK [17:08:42 | localhost | Group: Business Services | Trigger Start Sequence] ***
+Friday 12 December 2025  17:08:42 +0800 (0:00:00.014)       0:00:12.139 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_deploy_start.yml for localhost => (item={'app_name': 'app_backend_1', 'target_ip': 'localhost'})
+included: /Users/peng/Documents/code/2025-workspace/ansible/_deploy_start.yml for localhost => (item={'app_name': 'app_backend_2', 'target_ip': 'localhost'})
+
+TASK [17:08:42 | localhost | app_backend_1 | Load config] **********************
+Friday 12 December 2025  17:08:42 +0800 (0:00:00.018)       0:00:12.158 ******* 
+ok: [localhost]
+
+TASK [17:08:42 | localhost | app_backend_1 | DEBUG | Check Connection Method] ***
+Friday 12 December 2025  17:08:42 +0800 (0:00:00.014)       0:00:12.172 ******* 
+ok: [localhost] => 
+  msg:
+  - 'Target: localhost'
+  - 'Connection: local'
+  - 'Inventory Hostname: localhost'
+
+TASK [17:08:42 | localhost | app_backend_1 | Sync directory materials using modular task] ***
+Friday 12 December 2025  17:08:42 +0800 (0:00:00.018)       0:00:12.190 ******* 
+skipping: [localhost]
+
+TASK [17:08:42 | localhost | app_backend_1 | Ensure parent directory exists for config files] ***
+Friday 12 December 2025  17:08:42 +0800 (0:00:00.013)       0:00:12.204 ******* 
+skipping: [localhost]
+
+TASK [17:08:42 | localhost | app_backend_1 | Distribute config files] **********
+Friday 12 December 2025  17:08:42 +0800 (0:00:00.013)       0:00:12.218 ******* 
+skipping: [localhost]
+
+TASK [17:08:42 | localhost | app_backend_1 | Prepare Run Command] **************
+Friday 12 December 2025  17:08:42 +0800 (0:00:00.012)       0:00:12.230 ******* 
+ok: [localhost]
+
+TASK [17:08:42 | localhost | app_backend_1 | Flatten Command String] ***********
+Friday 12 December 2025  17:08:42 +0800 (0:00:00.017)       0:00:12.248 ******* 
+ok: [localhost]
+
+TASK [17:08:42 | localhost | app_backend_1 | DEBUG | Command Preview] **********
+Friday 12 December 2025  17:08:42 +0800 (0:00:00.013)       0:00:12.262 ******* 
+ok: [localhost] => 
+  msg: |-
+    Executing:   docker run -d --name app_backend_1 -p 8082:80  --health-cmd="wget -q --spider http://localhost:80 || exit 1" --health-interval=2s --health-retries=3 nginx:alpine
+
+TASK [17:08:42 | localhost | app_backend_1 | Cleanup old container] ************
+Friday 12 December 2025  17:08:42 +0800 (0:00:00.013)       0:00:12.275 ******* 
+changed: [localhost]
+
+TASK [17:08:42 | localhost | app_backend_1 | Run Container] ********************
+Friday 12 December 2025  17:08:42 +0800 (0:00:00.473)       0:00:12.748 ******* 
+changed: [localhost]
+
+TASK [17:08:43 | localhost | app_backend_2 | Load config] **********************
+Friday 12 December 2025  17:08:43 +0800 (0:00:00.433)       0:00:13.182 ******* 
+ok: [localhost]
+
+TASK [17:08:43 | localhost | app_backend_2 | DEBUG | Check Connection Method] ***
+Friday 12 December 2025  17:08:43 +0800 (0:00:00.017)       0:00:13.200 ******* 
+ok: [localhost] => 
+  msg:
+  - 'Target: localhost'
+  - 'Connection: local'
+  - 'Inventory Hostname: localhost'
+
+TASK [17:08:43 | localhost | app_backend_2 | Sync directory materials using modular task] ***
+Friday 12 December 2025  17:08:43 +0800 (0:00:00.019)       0:00:13.219 ******* 
+skipping: [localhost]
+
+TASK [17:08:43 | localhost | app_backend_2 | Ensure parent directory exists for config files] ***
+Friday 12 December 2025  17:08:43 +0800 (0:00:00.012)       0:00:13.232 ******* 
+skipping: [localhost]
+
+TASK [17:08:43 | localhost | app_backend_2 | Distribute config files] **********
+Friday 12 December 2025  17:08:43 +0800 (0:00:00.013)       0:00:13.245 ******* 
+skipping: [localhost]
+
+TASK [17:08:43 | localhost | app_backend_2 | Prepare Run Command] **************
+Friday 12 December 2025  17:08:43 +0800 (0:00:00.012)       0:00:13.257 ******* 
+ok: [localhost]
+
+TASK [17:08:43 | localhost | app_backend_2 | Flatten Command String] ***********
+Friday 12 December 2025  17:08:43 +0800 (0:00:00.020)       0:00:13.278 ******* 
+ok: [localhost]
+
+TASK [17:08:43 | localhost | app_backend_2 | DEBUG | Command Preview] **********
+Friday 12 December 2025  17:08:43 +0800 (0:00:00.014)       0:00:13.292 ******* 
+ok: [localhost] => 
+  msg: |-
+    Executing:   docker run -d --name app_backend_2 -p 8083:80  --health-cmd="wget -q --spider http://localhost:80 || exit 1" --health-interval=2s --health-retries=3 nginx:alpine
+
+TASK [17:08:43 | localhost | app_backend_2 | Cleanup old container] ************
+Friday 12 December 2025  17:08:43 +0800 (0:00:00.013)       0:00:13.306 ******* 
+changed: [localhost]
+
+TASK [17:08:43 | localhost | app_backend_2 | Run Container] ********************
+Friday 12 December 2025  17:08:43 +0800 (0:00:00.449)       0:00:13.756 ******* 
+changed: [localhost]
+
+TASK [17:08:44 | localhost | Group: Business Services | Trigger Health Checks] ***
+Friday 12 December 2025  17:08:44 +0800 (0:00:00.420)       0:00:14.176 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_deploy_verify.yml for localhost => (item={'app_name': 'app_backend_1', 'target_ip': 'localhost'})
+included: /Users/peng/Documents/code/2025-workspace/ansible/_deploy_verify.yml for localhost => (item={'app_name': 'app_backend_2', 'target_ip': 'localhost'})
+
+TASK [17:08:44 | localhost | app_backend_1 | Load config] **********************
+Friday 12 December 2025  17:08:44 +0800 (0:00:00.023)       0:00:14.200 ******* 
+ok: [localhost]
+
+TASK [17:08:44 | localhost | app_backend_1 | HealthCheck | Wait for container to be ready] ***
+Friday 12 December 2025  17:08:44 +0800 (0:00:00.016)       0:00:14.216 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/healthcheck_v2.yml for localhost
+
+TASK [17:08:44 | localhost | app_backend_1 | HealthCheck | Check if health status is available] ***
+Friday 12 December 2025  17:08:44 +0800 (0:00:00.016)       0:00:14.233 ******* 
+ok: [localhost]
+
+TASK [17:08:44 | localhost | app_backend_1 | DEBUG | 显示健康检查判断结果] *****
+Friday 12 December 2025  17:08:44 +0800 (0:00:00.240)       0:00:14.474 ******* 
+ok: [localhost] => 
+  msg:
+  - '健康状态值: ''has_healthcheck'''
+  - '判断结果: has_healthcheck'
+
+TASK [17:08:44 | localhost | app_backend_1 | HealthCheck | Wait for container with healthcheck] ***
+Friday 12 December 2025  17:08:44 +0800 (0:00:00.017)       0:00:14.491 ******* 
+FAILED - RETRYING: [localhost]: 17:08:44 | localhost | app_backend_1 | HealthCheck | Wait for container with healthcheck (30 retries left).
+changed: [localhost]
+
+TASK [17:08:49 | localhost | app_backend_1 | HealthCheck | Wait for one-time container to complete] ***
+Friday 12 December 2025  17:08:49 +0800 (0:00:05.475)       0:00:19.966 ******* 
+skipping: [localhost]
+
+TASK [17:08:49 | localhost | app_backend_2 | Load config] **********************
+Friday 12 December 2025  17:08:49 +0800 (0:00:00.016)       0:00:19.982 ******* 
+ok: [localhost]
+
+TASK [17:08:49 | localhost | app_backend_2 | HealthCheck | Wait for container to be ready] ***
+Friday 12 December 2025  17:08:49 +0800 (0:00:00.014)       0:00:19.997 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/healthcheck_v2.yml for localhost
+
+TASK [17:08:49 | localhost | app_backend_2 | HealthCheck | Check if health status is available] ***
+Friday 12 December 2025  17:08:49 +0800 (0:00:00.015)       0:00:20.012 ******* 
+ok: [localhost]
+
+TASK [17:08:50 | localhost | app_backend_2 | DEBUG | 显示健康检查判断结果] *****
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.234)       0:00:20.247 ******* 
+ok: [localhost] => 
+  msg:
+  - '健康状态值: ''has_healthcheck'''
+  - '判断结果: has_healthcheck'
+
+TASK [17:08:50 | localhost | app_backend_2 | HealthCheck | Wait for container with healthcheck] ***
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.018)       0:00:20.265 ******* 
+changed: [localhost]
+
+TASK [17:08:50 | localhost | app_backend_2 | HealthCheck | Wait for one-time container to complete] ***
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.234)       0:00:20.499 ******* 
+skipping: [localhost]
+
+TASK [17:08:50 | localhost | Master | Deployment Summary] **********************
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.014)       0:00:20.514 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_deploy_summary.yml for localhost
+
+TASK [17:08:50 | localhost | Summary | Collect Deployment Info] ****************
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.015)       0:00:20.529 ******* 
+ok: [localhost]
+
+TASK [17:08:50 | localhost | Summary | Iterate Groups] *************************
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.012)       0:00:20.541 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_summary_per_app.yml for localhost => (item={'name': 'Foundation Services', 'apps': [{'app_name': 'db_mysql_demo', 'target_ip': 'localhost'}]})
+included: /Users/peng/Documents/code/2025-workspace/ansible/_summary_per_app.yml for localhost => (item={'name': 'Business Services', 'apps': [{'app_name': 'app_backend_1', 'target_ip': 'localhost'}, {'app_name': 'app_backend_2', 'target_ip': 'localhost'}]})
+
+TASK [17:08:50 | localhost | Summary | Process Group Foundation Services] ******
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.016)       0:00:20.558 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_summary_fetch_info.yml for localhost => (item={'app_name': 'db_mysql_demo', 'target_ip': 'localhost'})
+
+TASK [17:08:50 | localhost | db_mysql_demo | Fetch Container Info] *************
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.014)       0:00:20.572 ******* 
+changed: [localhost]
+
+TASK [17:08:50 | localhost | Summary | Register Info] **************************
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.231)       0:00:20.803 ******* 
+ok: [localhost]
+
+TASK [17:08:50 | localhost | Summary | Process Group Business Services] ********
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.016)       0:00:20.820 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_summary_fetch_info.yml for localhost => (item={'app_name': 'app_backend_1', 'target_ip': 'localhost'})
+included: /Users/peng/Documents/code/2025-workspace/ansible/_summary_fetch_info.yml for localhost => (item={'app_name': 'app_backend_2', 'target_ip': 'localhost'})
+
+TASK [17:08:50 | localhost | app_backend_1 | Fetch Container Info] *************
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.016)       0:00:20.837 ******* 
+changed: [localhost]
+
+TASK [17:08:50 | localhost | Summary | Register Info] **************************
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.233)       0:00:21.070 ******* 
+ok: [localhost]
+
+TASK [17:08:50 | localhost | app_backend_2 | Fetch Container Info] *************
+Friday 12 December 2025  17:08:50 +0800 (0:00:00.015)       0:00:21.086 ******* 
+changed: [localhost]
+
+TASK [17:08:51 | localhost | Summary | Register Info] **************************
+Friday 12 December 2025  17:08:51 +0800 (0:00:00.231)       0:00:21.318 ******* 
+ok: [localhost]
+
+TASK [17:08:51 | localhost | Summary | Print Deployment Table] *****************
+Friday 12 December 2025  17:08:51 +0800 (0:00:00.015)       0:00:21.333 ******* 
+ok: [localhost] => 
+  msg: |-
+    ----------------------------------------------------------------------------------------------------------------
+    Application          | DeploymentIP    | ImageID                                                          | OriginalImageAddress
+    ---------------------|-----------------|------------------------------------------------------------------|---------------------
+    db_mysql_demo        | localhost       | sha256:8764bc580cf9c9d46b95b8674798ee0e951bed52efa2d9f5c5c886b876d653bc | alpine:latest
+    app_backend_1        | localhost       | sha256:cbad6347cca28a6ee7b08793856bc6fcb2c2c7a377a62a5e6d785895c4194ac1 | nginx:alpine
+    app_backend_2        | localhost       | sha256:cbad6347cca28a6ee7b08793856bc6fcb2c2c7a377a62a5e6d785895c4194ac1 | nginx:alpine
+    ----------------------------------------------------------------------------------------------------------------
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=61   changed=12   unreachable=0    failed=0    skipped=12   rescued=0    ignored=0   
+
+Playbook run took 0 days, 0 hours, 0 minutes, 21 seconds
+Friday 12 December 2025  17:08:51 +0800 (0:00:00.007)       0:00:21.341 ******* 
+=============================================================================== 
+17:08:31 | localhost | db_mysql_demo | HealthCheck | Wait for container with healthcheck -- 10.73s
+17:08:44 | localhost | app_backend_1 | HealthCheck | Wait for container with healthcheck --- 5.48s
+17:08:42 | localhost | app_backend_1 | Cleanup old container ------------ 0.47s
+17:08:30 | localhost | db_mysql_demo | Cleanup old container ------------ 0.46s
+17:08:43 | localhost | app_backend_2 | Cleanup old container ------------ 0.45s
+17:08:42 | localhost | app_backend_1 | Run Container -------------------- 0.43s
+17:08:43 | localhost | app_backend_2 | Run Container -------------------- 0.42s
+17:08:30 | localhost | db_mysql_demo | Run Container -------------------- 0.41s
+17:08:44 | localhost | app_backend_1 | HealthCheck | Check if health status is available --- 0.24s
+17:08:49 | localhost | app_backend_2 | HealthCheck | Check if health status is available --- 0.23s
+17:08:50 | localhost | app_backend_2 | HealthCheck | Wait for container with healthcheck --- 0.23s
+17:08:50 | localhost | app_backend_1 | Fetch Container Info ------------- 0.23s
+17:08:31 | localhost | db_mysql_demo | HealthCheck | Check if health status is available --- 0.23s
+17:08:50 | localhost | app_backend_2 | Fetch Container Info ------------- 0.23s
+17:08:50 | localhost | db_mysql_demo | Fetch Container Info ------------- 0.23s
+17:08:29 | localhost | db_mysql_demo | Load config ---------------------- 0.03s
+17:08:44 | localhost | Group: Business Services | Trigger Health Checks --- 0.02s
+17:08:43 | localhost | app_backend_2 | Prepare Run Command -------------- 0.02s
+17:08:30 | localhost | db_mysql_demo | DEBUG | Check Connection Method --- 0.02s
+17:08:43 | localhost | app_backend_2 | DEBUG | Check Connection Method --- 0.02s

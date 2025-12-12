@@ -1,0 +1,15 @@
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Fetch Container Info"
+  shell: "docker inspect --format='{{ '{{' }}.Image{{ '}}' }}|{{ '{{' }}.Config.Image{{ '}}' }}' {{ item_plan.app_name }}"
+  register: container_info
+  delegate_to: "{{ item_plan.target_ip }}"
+  ignore_errors: true
+
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Summary | Register Info"
+  set_fact:
+    deployment_summary: "{{ deployment_summary + [{
+      'app': item_plan.app_name,
+      'ip': item_plan.target_ip,
+      'image_id': (container_info.stdout | default('N/A')).split('|')[0],
+      'image_source': (container_info.stdout | default('N/A')).split('|')[1] | default('N/A')
+    }] }}"
+  when: container_info.rc == 0
