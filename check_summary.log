@@ -1,0 +1,79 @@
+
+PLAY [Check Deployment Summary] ************************************************
+
+TASK [17:24:33 | localhost | Master | Deployment Summary] **********************
+Friday 12 December 2025  17:24:33 +0800 (0:00:00.032)       0:00:00.032 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_deploy_summary.yml for localhost
+
+TASK [17:24:33 | localhost | Summary | Collect Deployment Info] ****************
+Friday 12 December 2025  17:24:33 +0800 (0:00:00.015)       0:00:00.048 ******* 
+ok: [localhost]
+
+TASK [17:24:33 | localhost | Summary | Iterate Groups] *************************
+Friday 12 December 2025  17:24:33 +0800 (0:00:00.011)       0:00:00.060 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_summary_per_app.yml for localhost => (item={'name': 'Foundation Services', 'apps': [{'app_name': 'db_mysql_demo', 'target_ip': 'localhost'}]})
+included: /Users/peng/Documents/code/2025-workspace/ansible/_summary_per_app.yml for localhost => (item={'name': 'Business Services', 'apps': [{'app_name': 'app_backend_1', 'target_ip': 'localhost'}, {'app_name': 'app_backend_2', 'target_ip': 'localhost'}]})
+
+TASK [17:24:33 | localhost | Summary | Process Group Foundation Services] ******
+Friday 12 December 2025  17:24:33 +0800 (0:00:00.017)       0:00:00.077 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_summary_fetch_info.yml for localhost => (item={'app_name': 'db_mysql_demo', 'target_ip': 'localhost'})
+
+TASK [17:24:33 | localhost | db_mysql_demo | Fetch Container Info] *************
+Friday 12 December 2025  17:24:33 +0800 (0:00:00.028)       0:00:00.106 ******* 
+changed: [localhost]
+
+TASK [17:24:33 | localhost | Summary | Register Info] **************************
+Friday 12 December 2025  17:24:33 +0800 (0:00:00.338)       0:00:00.445 ******* 
+ok: [localhost]
+
+TASK [17:24:33 | localhost | Summary | Process Group Business Services] ********
+Friday 12 December 2025  17:24:33 +0800 (0:00:00.024)       0:00:00.469 ******* 
+included: /Users/peng/Documents/code/2025-workspace/ansible/_summary_fetch_info.yml for localhost => (item={'app_name': 'app_backend_1', 'target_ip': 'localhost'})
+included: /Users/peng/Documents/code/2025-workspace/ansible/_summary_fetch_info.yml for localhost => (item={'app_name': 'app_backend_2', 'target_ip': 'localhost'})
+
+TASK [17:24:33 | localhost | app_backend_1 | Fetch Container Info] *************
+Friday 12 December 2025  17:24:33 +0800 (0:00:00.015)       0:00:00.485 ******* 
+changed: [localhost]
+
+TASK [17:24:33 | localhost | Summary | Register Info] **************************
+Friday 12 December 2025  17:24:33 +0800 (0:00:00.232)       0:00:00.718 ******* 
+ok: [localhost]
+
+TASK [17:24:33 | localhost | app_backend_2 | Fetch Container Info] *************
+Friday 12 December 2025  17:24:33 +0800 (0:00:00.018)       0:00:00.737 ******* 
+changed: [localhost]
+
+TASK [17:24:34 | localhost | Summary | Register Info] **************************
+Friday 12 December 2025  17:24:34 +0800 (0:00:00.241)       0:00:00.978 ******* 
+ok: [localhost]
+
+TASK [17:24:34 | localhost | Summary | Print Deployment Table] *****************
+Friday 12 December 2025  17:24:34 +0800 (0:00:00.019)       0:00:00.998 ******* 
+ok: [localhost] => 
+  msg: |-
+    ----------------------------------------------------------------------------------------------------------------
+    Application          | DeploymentIP    | ImageID                                                          | OriginalImageAddress
+    ---------------------|-----------------|------------------------------------------------------------------|---------------------
+    db_mysql_demo        | localhost       | sha256:8764bc580cf9c9d46b95b8674798ee0e951bed52efa2d9f5c5c886b876d653bc | alpine:latest
+    app_backend_1        | localhost       | sha256:cbad6347cca28a6ee7b08793856bc6fcb2c2c7a377a62a5e6d785895c4194ac1 | nginx:alpine
+    app_backend_2        | localhost       | sha256:cbad6347cca28a6ee7b08793856bc6fcb2c2c7a377a62a5e6d785895c4194ac1 | nginx:alpine
+    ----------------------------------------------------------------------------------------------------------------
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=14   changed=3    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+Playbook run took 0 days, 0 hours, 0 minutes, 1 seconds
+Friday 12 December 2025  17:24:34 +0800 (0:00:00.012)       0:00:01.011 ******* 
+=============================================================================== 
+17:24:33 | localhost | db_mysql_demo | Fetch Container Info ------------- 0.34s
+17:24:33 | localhost | app_backend_2 | Fetch Container Info ------------- 0.24s
+17:24:33 | localhost | app_backend_1 | Fetch Container Info ------------- 0.23s
+17:24:33 | localhost | Summary | Process Group Foundation Services ------ 0.03s
+17:24:33 | localhost | Summary | Register Info -------------------------- 0.02s
+17:24:34 | localhost | Summary | Register Info -------------------------- 0.02s
+17:24:33 | localhost | Summary | Register Info -------------------------- 0.02s
+17:24:33 | localhost | Summary | Iterate Groups ------------------------- 0.02s
+17:24:33 | localhost | Summary | Process Group Business Services -------- 0.02s
+17:24:33 | localhost | Master | Deployment Summary ---------------------- 0.02s
+17:24:34 | localhost | Summary | Print Deployment Table ----------------- 0.01s
+17:24:33 | localhost | Summary | Collect Deployment Info ---------------- 0.01s
