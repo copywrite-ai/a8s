@@ -28,6 +28,7 @@
 | **依赖管理** | 组间顺序执行，确保基础服务（如数据库）健康后才启动依赖服务（如后端应用） |
 | **健康检查** | 集成健康检查验证步骤，等待容器报告 `healthy` 状态后再继续 |
 | **物料分发** | 支持在容器启动前同步目录或单文件到目标主机 |
+| **智能跳过** | 支持 `--force-recreate` 模式，已存在且健康的容器可自动跳过 |
 
 ### 1.3 适用场景
 
@@ -1097,6 +1098,48 @@ ansible-playbook deploy.yml --tags "start,verify"
 
 # 从特定任务开始
 ansible-playbook deploy.yml --start-at-task="Run Container"
+
+# ============================================
+# force_recreate 参数 (类似 docker-compose)
+# ============================================
+
+# 默认行为：强制重建所有容器
+ansible-playbook deploy.yml
+
+# 智能部署：跳过已存在且健康的容器
+ansible-playbook deploy.yml -e "force_recreate=false"
+
+# 强制重建（显式指定，等同于默认行为）
+ansible-playbook deploy.yml -e "force_recreate=true"
+```
+
+### B.1 force_recreate 参数说明
+
+| 参数值 | 行为 |
+|--------|------|
+| `true` (默认) | 强制重建所有容器，无论当前状态如何 |
+| `false` | 智能部署模式，检查容器状态后决定是否跳过 |
+
+**智能部署模式判断逻辑**：
+
+```
+容器是否存在?
+    │
+    ├── 否 ────> 创建容器
+    │
+    └── 是
+        │
+        容器是否运行中?
+            │
+            ├── 否 ────> 重建容器
+            │
+            └── 是
+                │
+                容器健康状态?
+                    │
+                    ├── healthy ────────> 跳过 (已健康)
+                    ├── no_healthcheck ──> 跳过 (无健康检查配置，视为健康)
+                    └── unhealthy/其他 ──> 重建容器
 ```
 
 ### C. 测试验证

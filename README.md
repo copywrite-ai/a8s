@@ -14,6 +14,8 @@ A flexible, modular Ansible pipeline for orchestrating Docker container deployme
   - Configurable retries and intervals.
 - **Material Distribution**:
   - Supports syncing directories or single files to target hosts before container startup.
+- **Smart Skip (force_recreate)**:
+  - Similar to `docker-compose --force-recreate`, skip healthy containers automatically.
 
 ## Project Structure
 
@@ -73,9 +75,21 @@ deploy_groups:
 - SSH access to target hosts (if remote).
 
 ### Run Deployment
+
 ```bash
+# Force recreate all containers (default behavior)
 ansible-playbook deploy.yml
+
+# Smart deploy: skip healthy containers (like docker-compose without --force-recreate)
+ansible-playbook deploy.yml -e "force_recreate=false"
+
+# Explicitly force recreate
+ansible-playbook deploy.yml -e "force_recreate=true"
 ```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `force_recreate` | `true` | When `false`, skip containers that already exist and are healthy |
 
 ## Testing
 

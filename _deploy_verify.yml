@@ -1,9 +1,20 @@
+# ==============================================================================
+# 容器健康检查验证任务
+# 如果容器在启动阶段被跳过（已存在且健康），则验证也跳过
+# ==============================================================================
+
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Load config"
   set_fact:
     current_app: "{{ app_definitions[item_plan.app_name] }}"
     healthcheck_config: "{{ current_app.healthcheck | default({}) }}"
 
-# 8. 使用模块化健康检查
+# 检查是否需要跳过验证（容器在启动阶段已被跳过）
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | SKIP | Already verified as healthy"
+  debug:
+    msg: "Container '{{ item_plan.app_name }}' was skipped (already healthy). No verification needed."
+  when: skip_deploy | default(false) | bool
+
+# 使用模块化健康检查（仅当容器是新启动的）
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | HealthCheck | Wait for container to be ready"
   include_tasks: healthcheck_v2.yml
   vars:
@@ -12,3 +23,4 @@
     retries: "{{ healthcheck_config.retries | default(30) }}"
     interval: "{{ healthcheck_config.interval | default(5) }}"
     debug_mode: true
+  when: not (skip_deploy | default(false) | bool)

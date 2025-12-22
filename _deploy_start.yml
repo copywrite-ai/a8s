@@ -1,7 +1,58 @@
+# ==============================================================================
+# 容器启动任务
+# 支持 force_recreate 参数：
+#   - true (默认): 强制重建所有容器
+#   - false: 如果容器存在且健康，则跳过
+# 用法: ansible-playbook deploy.yml -e "force_recreate=false"
+# ==============================================================================
+
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Load config"
   set_fact:
     current_app: "{{ app_definitions[item_plan.app_name] }}"
     healthcheck_config: "{{ current_app.healthcheck | default({}) }}"
+    skip_deploy: false
+
+# 1. 检查容器是否存在且健康（仅当 force_recreate=false 时）
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Check if container exists and is healthy"
+  shell: |
+    # 检查容器是否存在
+    if ! docker inspect {{ item_plan.app_name }} >/dev/null 2>&1; then
+      echo "not_exists"
+      exit 0
+    fi
+    
+    # 检查容器是否运行中
+    status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ item_plan.app_name }} 2>/dev/null)
+    if [ "$status" != "running" ]; then
+      echo "not_running"
+      exit 0
+    fi
+    
+    # 检查健康状态
+    health=$(docker inspect --format='{{ '{{' }}if .State.Health{{ '}}' }}{{ '{{' }}.State.Health.Status{{ '}}' }}{{ '{{' }}else{{ '}}' }}no_healthcheck{{ '{{' }}end{{ '}}' }}' {{ item_plan.app_name }} 2>/dev/null)
+    
+    if [ "$health" = "healthy" ] || [ "$health" = "no_healthcheck" ]; then
+      echo "healthy"
+    else
+      echo "unhealthy"
+    fi
+  register: container_status
+  delegate_to: "{{ item_plan.target_ip }}"
+  changed_when: false
+  when: not (force_recreate | default(true) | bool)
+
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Set skip_deploy flag"
+  set_fact:
+    skip_deploy: true
+  when: 
+    - not (force_recreate | default(true) | bool)
+    - container_status.stdout is defined
+    - container_status.stdout == "healthy"
+
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | SKIP | Container already exists and healthy"
+  debug:
+    msg: "Container '{{ item_plan.app_name }}' is already running and healthy. Skipping deployment. Use -e 'force_recreate=true' to force recreate."
+  when: skip_deploy | bool
 
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | DEBUG | Check Connection Method"
   debug:
@@ -13,6 +64,7 @@
   vars:
     # Force gather connection var from delegated host context
     ansible_connection: "{{ hostvars[item_plan.target_ip].ansible_connection | default('ssh (default)') }}"
+  when: not (skip_deploy | bool)
 
 # 2. 物料分发
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Sync directory materials using modular task"
@@ -25,6 +77,7 @@
     sync_mode: "{{ item.mode | default('0755') }}"
     delegate_host: "{{ item_plan.target_ip }}"
   when: 
+    - not (skip_deploy | bool)
     - current_app.materials is defined
     - item.type == 'archive_dir'
   loop: "{{ current_app.materials | default([]) }}"
@@ -40,6 +93,7 @@
     group: "{{ item.group | default('root') }}"
     mode: '0755'
   when: 
+    - not (skip_deploy | bool)
     - current_app.materials is defined
     - item.type == 'file'
   loop: "{{ current_app.materials | default([]) }}"
@@ -56,6 +110,7 @@
     backup: yes
     remote_src: false
   when: 
+    - not (skip_deploy | bool)
     - current_app.materials is defined
     - item.type == 'file'
   loop: "{{ current_app.materials | default([]) }}"
@@ -95,24 +150,29 @@
         {{ current_app.image }}
         {# --- 自动拼接逻辑结束 --- #}
       {% endif %}
+  when: not (skip_deploy | bool)
 
 # 4. 精确替换续行符（仅处理 \\ 后跟空格的模式）
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Flatten Command String"
   set_fact:
     final_run_cmd: "{{ final_run_cmd | regex_replace('\\\\s+', ' ') }}"
+  when: not (skip_deploy | bool)
 
 # 5. 打印最终命令 (调试确认)
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | DEBUG | Command Preview"
   debug:
     msg: "Executing: {{ final_run_cmd }}"
+  when: not (skip_deploy | bool)
 
 # 6. 清理旧容器
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Cleanup old container"
   shell: "docker rm -f {{ item_plan.app_name }} || true"
   delegate_to: "{{ item_plan.target_ip }}"
-  ignore_errors: true 
+  ignore_errors: true
+  when: not (skip_deploy | bool)
 
 # 7. 执行启动
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Run Container"
   shell: "{{ final_run_cmd }}"
   delegate_to: "{{ item_plan.target_ip }}"
+  when: not (skip_deploy | bool)
