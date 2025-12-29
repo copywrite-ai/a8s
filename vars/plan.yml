@@ -1,20 +1,24 @@
-# 分组部署计划
-# Group 1: 基础服务 (DB)
-# Group 2: 业务服务 (Backend) - 在 DB 完成后并行启动
-deploy_groups:
+deployment_plan:
   - name: "Foundation Services"
     apps:
       - app_name: db_mysql_demo
         target_ip: localhost
 
+  - name: "Batch Jobs"
+    apps:
+      - app_name: job_data_migration
+        target_ip: localhost
+
   - name: "Business Services"
     apps:
-      - app_name: app_backend_1
+      - app_name: app_complex_script
         target_ip: localhost
-      - app_name: app_backend_2
+      - app_name: app_chained_commands
+        target_ip: localhost
+      - app_name: app_extremely_complex
         target_ip: localhost
 
   - name: "SRE Verification"
     apps:
-      - app_name: cmd_verify_api
+      - app_name: sre_api_warmer
         target_ip: localhost

@@ -34,9 +34,11 @@
           {{ current_app.image }}
         {% endif %}
 
-  - name: "Flatten and Compress Command String"
+  # 4. 鲁棒的命令平铺 (SRE 增强)
+  # 只平铺带 \ 的续行，保留真正的换行符以支持多条命令执行 (Script Mode)
+  - name: "Robust Flatten and Compress Command String"
     set_fact:
-      final_run_cmd: "{{ final_run_cmd | replace('\\\n', ' ') | regex_replace('\\s+', ' ') | trim }}"
+      final_run_cmd: "{{ final_run_cmd | regex_replace('\\\\\\s*\\n', ' ') | trim }}"
 
   # 4. 幂等性检查 (SRE 增强)
   - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Check Idempotency"

@@ -40,7 +40,7 @@
     debug:
       msg: "Container {{ app_name }} has already exited successfully. Skipping health checks."
     delegate_to: "{{ delegate_host }}"
-    when: container_initial_status.stdout == "already_exited_success"
+    when: container_initial_status.stdout.startswith("already_exited_success")
 
   # 只对非成功退出的容器执行健康检查
   - block:
@@ -59,18 +59,17 @@
     - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for container with healthcheck"
       shell: "docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' {{ app_name }}"
       register: health_status
-      until: health_status.stdout == "healthy"
+      until: health_status.stdout | trim == "healthy"
       retries: "{{ retries | default(30) }}"
       delay: "{{ interval | default(5) }}"
       delegate_to: "{{ delegate_host }}"
-      when: healthcheck_type.stdout_lines[-1] == "has_healthcheck"
+      when: healthcheck_type.stdout | trim == "has_healthcheck"
 
-    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for one-time container"
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for one-time container or service"
       shell: |
         if docker inspect {{ app_name }} >/dev/null 2>&1; then
           status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ app_name }})
           exit_code=$(docker inspect --format='{{ '{{' }}.State.ExitCode{{ '}}' }}' {{ app_name }})
-          # 成功条件：正在运行，或者已成功退出
           if [ "$status" = "running" ] || { [ "$status" = "exited" ] && [ "$exit_code" -eq 0 ]; }; then
             echo "success"
           else
@@ -80,15 +79,15 @@
           echo "waiting"
         fi
       register: container_status
-      until: container_status.stdout == "success"
+      until: container_status.stdout | trim == "success"
       retries: "{{ retries | default(30) }}"
       delay: "{{ interval | default(5) }}"
       delegate_to: "{{ delegate_host }}"
-      when: healthcheck_type.stdout_lines[-1] == "no_healthcheck"
+      when: healthcheck_type.stdout | trim == "no_healthcheck"
 
     when: >
-      container_initial_status.stdout != "already_exited_success" and
-      container_initial_status.stdout != "already_exited_failed"
+      not container_initial_status.stdout.startswith("already_exited_success") and
+      not container_initial_status.stdout.startswith("already_exited_failed")
 
   when: app_type | default('docker') == 'docker'
 
