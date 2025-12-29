@@ -16,7 +16,3 @@
       loop: "{{ deploy_groups }}"
       loop_control:
         loop_var: group_item
-
-    # 打印部署摘要
-    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Master | Deployment Summary"
-      include_tasks: _deploy_summary.yml

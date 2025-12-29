@@ -1,5 +1,0 @@
-- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Summary | Process Group {{ group_item.name }}"
-  include_tasks: _summary_fetch_info.yml
-  loop: "{{ group_item.apps }}"
-  loop_control:
-    loop_var: item_plan
