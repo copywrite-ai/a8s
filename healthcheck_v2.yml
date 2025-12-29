@@ -70,7 +70,12 @@
         if docker inspect {{ app_name }} >/dev/null 2>&1; then
           status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ app_name }})
           exit_code=$(docker inspect --format='{{ '{{' }}.State.ExitCode{{ '}}' }}' {{ app_name }})
-          [ "$status" = "exited" ] && [ "$exit_code" -eq 0 ] && echo "success" || echo "waiting"
+          # 成功条件：正在运行，或者已成功退出
+          if [ "$status" = "running" ] || { [ "$status" = "exited" ] && [ "$exit_code" -eq 0 ]; }; then
+            echo "success"
+          else
+            echo "waiting"
+          fi
         else
           echo "waiting"
         fi
