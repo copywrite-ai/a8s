@@ -4,10 +4,11 @@
     healthcheck_config: "{{ current_app.healthcheck | default({}) }}"
 
 # 8. 使用模块化健康检查
-- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | HealthCheck | Wait for container to be ready"
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | HealthCheck | Wait for app to be ready"
   include_tasks: healthcheck_v2.yml
   vars:
     app_name: "{{ item_plan.app_name }}"
+    app_type: "{{ current_app.app_type | default('docker') }}"
     delegate_host: "{{ item_plan.target_ip }}"
     retries: "{{ healthcheck_config.retries | default(30) }}"
     interval: "{{ healthcheck_config.interval | default(5) }}"

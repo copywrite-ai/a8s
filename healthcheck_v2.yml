@@ -1,114 +1,103 @@
-# 首先检查容器是否存在及其状态
-- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Check container existence and status"
-  shell: |
-    if docker inspect {{ app_name }} >/dev/null 2>&1; then
-      # 容器存在，检查状态
-      status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ app_name }})
-      image_id=$(docker inspect --format='{{ '{{' }}.Image{{ '}}' }}' {{ app_name }})
-      image_short_id=$(echo "$image_id" | cut -c 1-19)
-      
-      if [ "$status" = "exited" ]; then
-        exit_code=$(docker inspect --format='{{ '{{' }}.State.ExitCode{{ '}}' }}' {{ app_name }})
-        if [ "$exit_code" -eq 0 ]; then
-          echo "already_exited_success|$image_short_id"
-        else
-          echo "already_exited_failed|$image_short_id|$exit_code"
-        fi
-      elif [ "$status" = "running" ]; then
-        echo "already_running|$image_short_id"
-      else
-        echo "exists_other_status|$image_short_id|$status"
-      fi
-    else
-      echo "not_exists"
-    fi
-  register: container_initial_status
-  delegate_to: "{{ delegate_host }}"
-  changed_when: false
-
-- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | DEBUG | Container Initial Status"
-  debug:
-    msg: 
-      - "container_initial_status: '{{ container_initial_status.stdout }}'"
-  delegate_to: "{{ delegate_host }}"
-  when: debug_mode | default(false)
-
-# 如果容器已经成功退出，则跳过健康检查
-- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Skip if already successful"
-  debug:
-    msg: "Container {{ app_name }} has already exited successfully. Skipping health checks."
-  delegate_to: "{{ delegate_host }}"
-  when: container_initial_status.stdout == "already_exited_success"
-
-# 如果容器存在但失败退出，可能需要特殊处理
-- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Handle failed container"
-  debug:
-    msg: "Container {{ app_name }} has already exited with failure. Previous exit code: {{ container_initial_status.stdout }}"
-  delegate_to: "{{ delegate_host }}"
-  when: container_initial_status.stdout == "already_exited_failed"
-  failed_when: false  # 不立即失败，让后续逻辑决定
-
-# 只对非成功退出的容器执行健康检查
+# ==========================================
+# Phase: Docker Health Check Logic
+# ==========================================
 - block:
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Check if health status is available"
-    shell: |
-      # 直接尝试获取健康状态，如果命令成功且有输出，说明有健康检查
-      health_status=$(docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' {{ app_name }} 2>/dev/null || echo "no_healthcheck")
-      
-      if [ "$health_status" = "starting" ] || [ "$health_status" = "healthy" ] || [ "$health_status" = "unhealthy" ]; then
-        echo "has_healthcheck"
-      else
-        echo "no_healthcheck"
-      fi
-    register: healthcheck_type
-    delegate_to: "{{ delegate_host }}"
-    changed_when: false
-    when: >
-      container_initial_status.stdout != "already_exited_success" and
-      container_initial_status.stdout != "already_exited_failed"
-
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | DEBUG | Healthcheck Type Result"
-    debug:
-      msg: 
-        - "healthcheck_result_raw: '{{ healthcheck_type.stdout }}'"
-        - "healthcheck_result: {{ healthcheck_type.stdout_lines[-1] if healthcheck_type.stdout_lines is defined else 'N/A' }}"
-    delegate_to: "{{ delegate_host }}"
-    when: >
-      debug_mode | default(false) and
-      container_initial_status.stdout != "already_exited_success" and
-      container_initial_status.stdout != "already_exited_failed"
-
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for container with healthcheck"
-    shell: "docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' {{ app_name }}"
-    register: health_status
-    until: health_status.stdout == "healthy"
-    retries: "{{ retries | default(30) }}"
-    delay: "{{ interval | default(5) }}"
-    delegate_to: "{{ delegate_host }}"
-    when: >
-      healthcheck_type.stdout_lines[-1] == "has_healthcheck" and
-      container_initial_status.stdout != "already_exited_success" and
-      container_initial_status.stdout != "already_exited_failed"
-
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for one-time container to complete"
+  # 首先检查容器是否存在及其状态
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Check container existence and status"
     shell: |
       if docker inspect {{ app_name }} >/dev/null 2>&1; then
         status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ app_name }})
-        exit_code=$(docker inspect --format='{{ '{{' }}.State.ExitCode{{ '}}' }}' {{ app_name }})
-        [ "$status" = "exited" ] && [ "$exit_code" -eq 0 ] && echo "success" || echo "waiting"
+        image_id=$(docker inspect --format='{{ '{{' }}.Image{{ '}}' }}' {{ app_name }})
+        image_short_id=$(echo "$image_id" | cut -c 1-19)
+        
+        if [ "$status" = "exited" ]; then
+          exit_code=$(docker inspect --format='{{ '{{' }}.State.ExitCode{{ '}}' }}' {{ app_name }})
+          if [ "$exit_code" -eq 0 ]; then
+            echo "already_exited_success|$image_short_id"
+          else
+            echo "already_exited_failed|$image_short_id|$exit_code"
+          fi
+        elif [ "$status" = "running" ]; then
+          echo "already_running|$image_short_id"
+        else
+          echo "exists_other_status|$image_short_id|$status"
+        fi
       else
-        echo "waiting"
+        echo "not_exists"
       fi
-    register: container_status
-    until: container_status.stdout == "success"
-    retries: "{{ retries | default(30) }}"
-    delay: "{{ interval | default(5) }}"
+    register: container_initial_status
     delegate_to: "{{ delegate_host }}"
+    changed_when: false
+
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | DEBUG | Container Initial Status"
+    debug:
+      msg: "container_initial_status: '{{ container_initial_status.stdout }}'"
+    delegate_to: "{{ delegate_host }}"
+    when: debug_mode | default(false)
+
+  # 如果容器已经成功退出，则跳过健康检查
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Skip if already successful"
+    debug:
+      msg: "Container {{ app_name }} has already exited successfully. Skipping health checks."
+    delegate_to: "{{ delegate_host }}"
+    when: container_initial_status.stdout == "already_exited_success"
+
+  # 只对非成功退出的容器执行健康检查
+  - block:
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Check if health status is available"
+      shell: |
+        health_status=$(docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' {{ app_name }} 2>/dev/null || echo "no_healthcheck")
+        if [ "$health_status" = "starting" ] || [ "$health_status" = "healthy" ] || [ "$health_status" = "unhealthy" ]; then
+          echo "has_healthcheck"
+        else
+          echo "no_healthcheck"
+        fi
+      register: healthcheck_type
+      delegate_to: "{{ delegate_host }}"
+      changed_when: false
+
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for container with healthcheck"
+      shell: "docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' {{ app_name }}"
+      register: health_status
+      until: health_status.stdout == "healthy"
+      retries: "{{ retries | default(30) }}"
+      delay: "{{ interval | default(5) }}"
+      delegate_to: "{{ delegate_host }}"
+      when: healthcheck_type.stdout_lines[-1] == "has_healthcheck"
+
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for one-time container"
+      shell: |
+        if docker inspect {{ app_name }} >/dev/null 2>&1; then
+          status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ app_name }})
+          exit_code=$(docker inspect --format='{{ '{{' }}.State.ExitCode{{ '}}' }}' {{ app_name }})
+          [ "$status" = "exited" ] && [ "$exit_code" -eq 0 ] && echo "success" || echo "waiting"
+        else
+          echo "waiting"
+        fi
+      register: container_status
+      until: container_status.stdout == "success"
+      retries: "{{ retries | default(30) }}"
+      delay: "{{ interval | default(5) }}"
+      delegate_to: "{{ delegate_host }}"
+      when: healthcheck_type.stdout_lines[-1] == "no_healthcheck"
+
     when: >
-      healthcheck_type.stdout_lines[-1] == "no_healthcheck" and
       container_initial_status.stdout != "already_exited_success" and
       container_initial_status.stdout != "already_exited_failed"
 
-  when: >
-    container_initial_status.stdout != "already_exited_success" and
-    container_initial_status.stdout != "already_exited_failed"
+  when: app_type | default('docker') == 'docker'
+
+# ==========================================
+# Phase: CMD/Binary Health Check Logic
+# ==========================================
+- block:
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Verify command"
+    shell: "{{ current_app.health_cmd | default(current_app.command) }}"
+    delegate_to: "{{ delegate_host }}"
+    register: health_cmd_result
+    until: health_cmd_result.rc == 0
+    retries: "{{ retries | default(5) }}"
+    delay: "{{ interval | default(2) }}"
+    changed_when: false
+
+  when: app_type | default('docker') == 'cmd'

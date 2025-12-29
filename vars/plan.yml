@@ -13,3 +13,8 @@ deploy_groups:
         target_ip: localhost
       - app_name: app_backend_2
         target_ip: localhost
+
+  - name: "SRE Verification"
+    apps:
+      - app_name: cmd_verify_api
+        target_ip: localhost
