@@ -4,14 +4,26 @@ deployment_plan:
       - app_name: db_mysql_demo
         target_ip: localhost
 
-  - name: "Batch Jobs"
-    apps:
-      - app_name: job_data_migration
-        target_ip: localhost
-
   - name: "Big Data Service"
     apps:
       - app_name: es_app
         target_ip: localhost
       - app_name: es_index_task
+        target_ip: localhost
+
+  - name: "Business Services"
+    apps:
+      - app_name: app_complex_script
+        target_ip: localhost
+      - app_name: app_extremely_complex
+        target_ip: localhost
+
+  - name: "Batch Jobs"
+    apps:
+      - app_name: job_data_migration
+        target_ip: localhost
+
+  - name: "SRE Verification"
+    apps:
+      - app_name: sre_api_warmer
         target_ip: localhost
