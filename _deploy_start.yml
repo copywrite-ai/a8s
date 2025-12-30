@@ -4,6 +4,7 @@
     app_type: "{{ app_definitions[item_plan.app_name].app_type | default('docker') }}"
     healthcheck_config: "{{ current_app.healthcheck | default({}) }}"
     skip_deploy: false
+    image_base: "{{ (current_app.image | default('')).split('@')[0] }}"
 
 # ==========================================
 # Phase: Docker Deployment Logic
@@ -31,7 +32,7 @@
           {% for port in current_app.ports | default([]) %}-p {{ port }} {% endfor %}
           {% for volume in current_app.volumes | default([]) %}-v {{ volume }} {% endfor %}
           {% for k,v in current_app.env.items() | default({}) %}-e {{ k }}='{{ v }}' {% endfor %}
-          {{ current_app.image }}
+          {{ image_base }}
         {% endif %}
 
   # 4. 鲁棒的命令平铺 (SRE 增强)
@@ -45,7 +46,7 @@
     shell: |
       if docker inspect {{ item_plan.app_name }} >/dev/null 2>&1; then
         current_image=$(docker inspect --format='{{ '{{' }}.Image{{ '}}' }}' {{ item_plan.app_name }} | sed 's/sha256://' | cut -c 1-12)
-        target_image_id=$(docker inspect --format='{{ '{{' }}.Id{{ '}}' }}' {{ current_app.image }} 2>/dev/null | sed 's/sha256://' | cut -c 1-12 || echo "unknown")
+        target_image_id=$(docker inspect --format='{{ '{{' }}.Id{{ '}}' }}' {{ image_base }} 2>/dev/null | sed 's/sha256://' | cut -c 1-12 || echo "unknown")
         status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ item_plan.app_name }})
         
         if [ "$current_image" = "$target_image_id" ] && [ "$status" = "running" ]; then

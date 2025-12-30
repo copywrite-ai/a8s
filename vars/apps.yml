@@ -1,13 +1,13 @@
 app_definitions:
   # 1. 基础服务: 外部数据库 (带健康检查)
   db_mysql_demo:
-    image: alpine:latest
+    image: "alpine:latest@8764bc580cf9"
     raw_command: |
       docker run -d --name db_mysql_demo alpine:latest tail -f /dev/null
 
   # 2. 核心服务: Elasticsearch (BigData 场景)
   es_app:
-    image: elasticsearch:7.17.23
+    image: "elasticsearch:7.17.23@5113bca13f4f"
     ports:
       - "9200:9200"
     raw_command: |
@@ -22,7 +22,7 @@ app_definitions:
 
   # 3. 后置任务: ES 索引创建 (Network Host 模式)
   es_index_task:
-    image: alpine:latest
+    image: "alpine:latest@8764bc580cf9"
     raw_command: |
       docker run --name es_index_task --network host alpine:latest sh -c "
         apk add --no-cache curl && \
@@ -35,7 +35,7 @@ app_definitions:
 
   # 4. 业务应用: 复杂初始化脚本 (Script Mode)
   app_complex_script:
-    image: nginx:alpine
+    image: "nginx:alpine@cbad6347cca2"
     raw_command: |
       docker run -d --name app_complex_script -p 8085:80 nginx:alpine
       # 执行多行初始化脚本
@@ -44,7 +44,7 @@ app_definitions:
 
   # 5. 业务应用: 链式嵌套续行 (Extremely Complex Mode)
   app_extremely_complex:
-    image: nginx:alpine
+    image: "nginx:alpine@cbad6347cca2"
     raw_command: |
       docker run -d \
         --name app_extremely_complex \
@@ -57,7 +57,7 @@ app_definitions:
 
   # 6. 一次性任务: 数据迁移 (One-time Job)
   job_data_migration:
-    image: alpine:latest
+    image: "alpine:latest@8764bc580cf9"
     raw_command: |
       docker run --name job_data_migration alpine:latest sh -c "echo 'Migration starting...'; sleep 1; exit 0"
 
