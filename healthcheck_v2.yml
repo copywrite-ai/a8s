@@ -17,7 +17,7 @@
       if docker inspect {{ app_name }} >/dev/null 2>&1; then
         status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ app_name }})
         image_id=$(docker inspect --format='{{ '{{' }}.Image{{ '}}' }}' {{ app_name }})
-        image_short_id=$(echo "$image_id" | cut -c 1-19)
+        image_short_id=$(echo "$image_id" | sed 's/sha256://' | cut -c 1-12)
         
         if [ "$status" = "exited" ]; then
           exit_code=$(docker inspect --format='{{ '{{' }}.State.ExitCode{{ '}}' }}' {{ app_name }})
@@ -72,6 +72,7 @@
       retries: "{{ retries | default(30) }}"
       delay: "{{ interval | default(5) }}"
       delegate_to: "{{ delegate_host }}"
+      changed_when: false
       when: (healthcheck_type.stdout | default('') | trim) == "has_healthcheck"
 
     - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for one-time container or service"
@@ -92,6 +93,7 @@
       retries: "{{ retries | default(30) }}"
       delay: "{{ interval | default(5) }}"
       delegate_to: "{{ delegate_host }}"
+      changed_when: false
       when: (healthcheck_type.stdout | default('') | trim) == "no_healthcheck"
 
     when: >

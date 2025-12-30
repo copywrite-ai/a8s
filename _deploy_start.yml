@@ -44,8 +44,8 @@
   - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Check Idempotency"
     shell: |
       if docker inspect {{ item_plan.app_name }} >/dev/null 2>&1; then
-        current_image=$(docker inspect --format='{{ '{{' }}.Image{{ '}}' }}' {{ item_plan.app_name }})
-        target_image_id=$(docker inspect --format='{{ '{{' }}.Id{{ '}}' }}' {{ current_app.image }} 2>/dev/null || echo "unknown")
+        current_image=$(docker inspect --format='{{ '{{' }}.Image{{ '}}' }}' {{ item_plan.app_name }} | sed 's/sha256://' | cut -c 1-12)
+        target_image_id=$(docker inspect --format='{{ '{{' }}.Id{{ '}}' }}' {{ current_app.image }} 2>/dev/null | sed 's/sha256://' | cut -c 1-12 || echo "unknown")
         status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ item_plan.app_name }})
         
         if [ "$current_image" = "$target_image_id" ] && [ "$status" = "running" ]; then
