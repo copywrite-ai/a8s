@@ -10,38 +10,7 @@
 # Phase: Docker Deployment Logic
 # ==========================================
 - block:
-  # 2. 物料分发
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Sync materials"
-    include_tasks: sync_v2.yml
-    vars:
-      sync_src: "{{ item.src }}"
-      sync_dest: "{{ item.dest }}"
-      delegate_host: "{{ item_plan.target_ip }}"
-    when: current_app.materials is defined and item.type == 'archive_dir'
-    loop: "{{ current_app.materials | default([]) }}"
-    loop_control:
-      loop_var: item
-
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Prepare Run Command"
-    set_fact:
-      final_run_cmd: |
-        {% if current_app.raw_command is defined %}
-          {{ current_app.raw_command }}
-        {% else %}
-          docker run -d --name {{ item_plan.app_name }} --restart always 
-          {% for port in current_app.ports | default([]) %}-p {{ port }} {% endfor %}
-          {% for volume in current_app.volumes | default([]) %}-v {{ volume }} {% endfor %}
-          {% for k,v in current_app.env.items() | default({}) %}-e {{ k }}='{{ v }}' {% endfor %}
-          {{ image_base }}
-        {% endif %}
-
-  # 4. 鲁棒的命令平铺 (SRE 增强)
-  # 只平铺带 \ 的续行，保留真正的换行符以支持多条命令执行 (Script Mode)
-  - name: "Robust Flatten and Compress Command String"
-    set_fact:
-      final_run_cmd: "{{ final_run_cmd | regex_replace('\\\\\\s*\\n', ' ') | trim }}"
-
-  # 4. 幂等性检查 (SRE 增强)
+  # 1. 幂等性检查 (先行判断)
   - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Check Idempotency"
     shell: |
       if docker inspect {{ item_plan.app_name }} >/dev/null 2>&1; then
@@ -86,6 +55,42 @@
     debug:
       msg: "Container already running with correct image. Skipping redeploy."
     when: skip_deploy
+
+  # 2. 物料分发 (仅在非幂等时执行)
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Sync materials"
+    include_tasks: sync_v2.yml
+    vars:
+      sync_src: "{{ item.src }}"
+      sync_dest: "{{ item.dest }}"
+      delegate_host: "{{ item_plan.target_ip }}"
+    when: 
+      - not skip_deploy
+      - current_app.materials is defined 
+      - item.type == 'archive_dir'
+    loop: "{{ current_app.materials | default([]) }}"
+    loop_control:
+      loop_var: item
+
+  # 3. 准备运行命令
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Prepare Run Command"
+    set_fact:
+      final_run_cmd: |
+        {% if current_app.raw_command is defined %}
+          {{ current_app.raw_command }}
+        {% else %}
+          docker run -d --name {{ item_plan.app_name }} --restart always 
+          {% for port in current_app.ports | default([]) %}-p {{ port }} {% endfor %}
+          {% for volume in current_app.volumes | default([]) %}-v {{ volume }} {% endfor %}
+          {% for k,v in current_app.env.items() | default({}) %}-e {{ k }}='{{ v }}' {% endfor %}
+          {{ image_base }}
+        {% endif %}
+    when: not skip_deploy
+
+  # 4. 鲁棒的命令平铺 (SRE 增强)
+  - name: "Robust Flatten and Compress Command String"
+    set_fact:
+      final_run_cmd: "{{ final_run_cmd | regex_replace('\\\\\\s*\\n', ' ') | trim }}"
+    when: not skip_deploy
 
   # 6. 清理与启动 (仅在需要时执行)
   - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Cleanup old container"
