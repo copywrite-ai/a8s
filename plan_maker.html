@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeployYAML Pro - 飞书表格转换器</title>
+    <title>DeployYAML Pro - 双向转换工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
     <style>
@@ -19,16 +19,15 @@
             background-color: #0f172a;
             color: #e2e8f0;
             margin: 0;
-            overflow: hidden;
-            /* 禁止整页滚动 */
             height: 100vh;
+            overflow: hidden;
         }
 
         .mono {
             font-family: 'JetBrains Mono', monospace;
         }
 
-        /* 自定义滚动条 */
+        /* 滚动条 */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -43,340 +42,281 @@
             border-radius: 10px;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: #475569;
-        }
-
-        /* 编辑状态样式 */
+        /* 编辑状态 */
         [contenteditable]:focus {
-            outline: 2px solid #6366f1;
+            outline: none;
             background: #1e293b;
-            border-radius: 4px;
+            box-shadow: inset 0 0 0 1px #6366f1;
         }
 
         .active-tab {
-            background-color: #312e81;
-            color: #e0e7ff;
+            background-color: #1e293b;
+            color: #818cf8;
             border-bottom: 2px solid #6366f1;
         }
 
-        .panel-height {
+        .panel-container {
             height: calc(100vh - 64px);
+        }
+
+        /* 这里的 textarea 模拟代码编辑器 */
+        #yamlEditor {
+            scrollbar-gutter: stable;
+            caret-color: #6366f1;
         }
     </style>
 </head>
 
 <body class="flex flex-col">
 
-    <!-- 顶栏导航 -->
-    <header class="h-16 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900 shrink-0">
+    <!-- Header -->
+    <header class="h-16 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900 shrink-0 z-10">
         <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <div class="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center">
                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
-                    </path>
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
                 </svg>
             </div>
             <h1 class="text-lg font-semibold tracking-tight">DeployYAML <span
-                    class="text-slate-500 font-normal">Pro</span></h1>
+                    class="text-slate-500 font-normal">Bi-Directional</span></h1>
         </div>
 
-        <div class="flex items-center gap-4">
-            <div id="syncStatus" class="text-xs text-slate-500 flex items-center gap-2">
-                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                实时同步中
-            </div>
-            <div class="h-6 w-[1px] bg-slate-800 mx-2"></div>
-            <button onclick="importYaml()"
-                class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm px-4 py-2 rounded-lg font-medium transition-all active:scale-95 flex items-center gap-2 border border-slate-700">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                </svg>
-                导入 YAML
-            </button>
+        <div class="flex items-center gap-2">
+            <span id="msgTag"
+                class="text-xs px-3 py-1 rounded-full bg-slate-800 text-slate-400 opacity-0 transition-opacity">已同步</span>
             <button onclick="copyYaml()"
-                class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg font-medium transition-all active:scale-95 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                        d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">
-                    </path>
-                </svg>
+                class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm px-4 py-2 rounded-lg transition-all flex items-center gap-2">
                 复制 YAML
+            </button>
+            <button onclick="downloadYaml()"
+                class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg transition-all flex items-center gap-2">
+                下载 .yml
             </button>
         </div>
     </header>
 
-    <!-- 主体区域 -->
+    <!-- Main Content -->
     <main class="flex flex-1 overflow-hidden">
 
-        <!-- 左侧：输入/编辑 -->
-        <section class="w-1/2 border-r border-slate-800 flex flex-col bg-slate-900/50">
-            <!-- 模式切换 -->
-            <div class="flex bg-slate-900 border-b border-slate-800">
-                <button id="tabText" onclick="switchView('text')"
-                    class="px-6 py-3 text-sm font-medium transition-all active-tab">原始文本模式</button>
+        <!-- Left: Input / Table (Data Source) -->
+        <section class="w-1/2 border-r border-slate-800 flex flex-col bg-slate-900/30">
+            <div class="flex bg-slate-900 border-b border-slate-800 shrink-0">
                 <button id="tabTable" onclick="switchView('table')"
-                    class="px-6 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 transition-all">可视化编辑表格</button>
+                    class="px-6 py-3 text-sm font-medium active-tab transition-all">表格编辑</button>
+                <button id="tabText" onclick="switchView('text')"
+                    class="px-6 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 transition-all">原始文本</button>
             </div>
 
-            <!-- 文本视图 -->
-            <div id="textView" class="flex-1 overflow-hidden flex flex-col">
-                <textarea id="inputArea" placeholder="在此处 Ctrl+V 粘贴飞书表格数据 (需带表头: 部署分组 | 机器ip | 应用名)..."
-                    class="flex-1 w-full p-6 bg-transparent mono text-sm text-slate-300 outline-none resize-none leading-relaxed"></textarea>
-            </div>
+            <div class="flex-1 relative overflow-hidden">
+                <!-- Table View -->
+                <div id="tableView" class="absolute inset-0 overflow-auto p-0">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 bg-slate-900 shadow-sm z-10">
+                            <tr id="tableHead" class="text-slate-500 text-xs uppercase border-b border-slate-800">
+                                <!-- Dynamic -->
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="text-sm divide-y divide-slate-800/50 text-slate-300">
+                            <!-- Dynamic -->
+                        </tbody>
+                    </table>
+                    <div id="emptyState" class="flex flex-col items-center justify-center h-64 text-slate-600">
+                        <p class="text-sm italic">等待粘贴飞书数据...</p>
+                    </div>
+                </div>
 
-            <!-- 表格视图 -->
-            <div id="tableView" class="flex-1 hidden overflow-auto p-4">
-                <table class="w-full text-left border-collapse min-w-[600px]">
-                    <thead>
-                        <tr id="tableHead"
-                            class="text-slate-400 text-xs uppercase tracking-wider border-b border-slate-700">
-                            <!-- 动态生成 -->
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody" class="text-sm divide-y divide-slate-800 text-slate-300">
-                        <!-- 动态生成 -->
-                    </tbody>
-                </table>
-                <div id="emptyState" class="flex flex-col items-center justify-center py-20 text-slate-600">
-                    <svg class="w-12 h-12 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                            d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
-                        </path>
-                    </svg>
-                    <p>暂无数据，请先在文本模式粘贴</p>
+                <!-- Text View -->
+                <div id="textView" class="absolute inset-0 hidden">
+                    <textarea id="inputArea" placeholder="在此粘贴飞书表格数据..."
+                        class="w-full h-full p-6 bg-transparent mono text-sm text-slate-400 outline-none resize-none leading-relaxed"></textarea>
                 </div>
             </div>
         </section>
 
-        <!-- 右侧：YAML 输出 -->
+        <!-- Right: YAML Editor -->
         <section class="w-1/2 flex flex-col bg-[#0b1120]">
-            <div
-                class="px-6 py-3 bg-slate-900/80 border-b border-slate-800 text-xs font-semibold text-slate-500 uppercase tracking-widest flex items-center justify-between">
-                输出预览 (YAML 格式)
-                <span id="lineCount" class="text-indigo-400 font-mono">0 groups</span>
+            <div class="px-6 py-2 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between shrink-0">
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">YAML Editor</span>
+                <button onclick="syncYamlToTable()"
+                    class="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 py-1 px-2 rounded hover:bg-indigo-500/10 transition-all"
+                    title="将修改后的 YAML 反向同步到左侧表格">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"></path>
+                    </svg>
+                    反向同步至表格
+                </button>
             </div>
-            <div class="flex-1 overflow-auto custom-scrollbar relative">
-                <pre id="outputArea" class="p-8 mono text-sm text-cyan-400 leading-relaxed"></pre>
-            </div>
+
+            <textarea id="yamlEditor" spellcheck="false"
+                class="flex-1 w-full p-8 bg-transparent mono text-sm text-cyan-400 outline-none resize-none leading-relaxed border-none focus:ring-0"></textarea>
         </section>
     </main>
 
     <script>
         const inputArea = document.getElementById('inputArea');
-        const outputArea = document.getElementById('outputArea');
+        const yamlEditor = document.getElementById('yamlEditor');
         const tableHead = document.getElementById('tableHead');
         const tableBody = document.getElementById('tableBody');
         const emptyState = document.getElementById('emptyState');
-        const lineCount = document.getElementById('lineCount');
+        const msgTag = document.getElementById('msgTag');
 
-        let dataState = []; // 存储当前表格数据 [headers, ...rows]
+        // 数据模型：[ [headers...], [row1...], [row2...] ]
+        let dataState = [];
 
-        // 监听输入
+        // --- 1. 监听左侧粘贴/输入 ---
         inputArea.addEventListener('input', () => {
             parseFromText(inputArea.value);
+            syncToYaml();
         });
 
-        // 从粘贴板解析
-        inputArea.addEventListener('paste', (e) => {
-            setTimeout(() => parseFromText(inputArea.value), 50);
-        });
-
+        // --- 2. 解析逻辑 (Text -> State) ---
         function parseFromText(text) {
             const raw = text.trim();
             if (!raw) {
                 dataState = [];
-                renderAll();
+                renderTable();
                 return;
             }
-
             const lines = raw.split(/\r?\n/).filter(l => l.trim() !== '');
             dataState = lines.map(line => line.split('\t').map(cell => cell.trim().replace(/^"(.*)"$/, '$1')));
-
-            renderAll();
-        }
-
-        function renderAll() {
             renderTable();
-            generateYaml();
         }
 
+        // --- 3. 渲染左侧表格 ---
         function renderTable() {
             if (dataState.length === 0) {
-                tableHead.innerHTML = '';
-                tableBody.innerHTML = '';
+                tableHead.innerHTML = ''; tableBody.innerHTML = '';
                 emptyState.style.display = 'flex';
                 return;
             }
             emptyState.style.display = 'none';
 
             const [headers, ...rows] = dataState;
-
-            // 渲染表头
-            tableHead.innerHTML = headers.map((h, i) => `
-                <th class="px-4 py-3 font-semibold">${h || '未命名列'}</th>
-            `).join('');
-
-            // 渲染行
-            tableBody.innerHTML = rows.map((row, rowIndex) => `
-                <tr class="hover:bg-slate-800/50 transition-colors">
-                    ${row.map((cell, cellIndex) => `
-                        <td 
-                            contenteditable="true" 
-                            oninput="updateCell(${rowIndex + 1}, ${cellIndex}, this.innerText)"
-                            class="px-4 py-3 border-slate-800 transition-all outline-none"
+            tableHead.innerHTML = headers.map(h => `<th class="px-6 py-3 font-semibold">${h}</th>`).join('');
+            tableBody.innerHTML = rows.map((row, rIdx) => `
+                <tr class="hover:bg-slate-800/30">
+                    ${row.map((cell, cIdx) => `
+                        <td contenteditable="true" 
+                            oninput="updateDataState(${rIdx + 1}, ${cIdx}, this.innerText)"
+                            class="px-6 py-3 border-b border-slate-800/50 outline-none text-slate-400 focus:text-white"
                         >${cell}</td>
                     `).join('')}
                 </tr>
             `).join('');
         }
 
-        // 表格单元格编辑回调
-        function updateCell(r, c, value) {
-            dataState[r][c] = value.trim();
-            // 同步回 Textarea (TSV格式)
+        // --- 4. 表格编辑同步 ---
+        function updateDataState(r, c, val) {
+            dataState[r][c] = val.trim();
+            // 同步回文本域
             inputArea.value = dataState.map(row => row.join('\t')).join('\n');
-            // 实时生成新 YAML
-            generateYaml();
+            syncToYaml();
         }
 
-        function generateYaml() {
-            if (dataState.length < 2) {
-                outputArea.textContent = "";
-                lineCount.textContent = "0 groups";
-                return;
-            }
-
+        // --- 5. 正向同步 (State -> YAML) ---
+        function syncToYaml() {
+            if (dataState.length < 2) { yamlEditor.value = ""; return; }
             const headers = dataState[0];
             const rows = dataState.slice(1);
 
-            const idxGroup = headers.findIndex(h => h.includes('部署分组'));
-            const idxIp = headers.findIndex(h => h.includes('机器ip'));
-            const idxAppName = headers.findIndex(h => h.includes('应用名'));
+            const idxGroup = headers.indexOf('部署分组');
+            const idxIp = headers.indexOf('机器ip');
+            const idxApp = headers.indexOf('应用名');
 
-            if (idxGroup === -1 || idxIp === -1 || idxAppName === -1) {
-                outputArea.textContent = "# 无法生成：请确保表头包含 '部署分组'、'机器ip' 和 '应用名'";
+            if (idxGroup === -1 || idxIp === -1 || idxApp === -1) {
+                yamlEditor.value = "# 错误: 表头必须包含 [部署分组, 机器ip, 应用名]";
                 return;
             }
 
-            const groupMap = new Map();
+            const groups = new Map();
             rows.forEach(row => {
-                const group = row[idxGroup];
-                if (!group) return;
-                if (!groupMap.has(group)) groupMap.set(group, []);
-                groupMap.get(group).push({
-                    app_name: row[idxAppName] || "",
+                const gName = row[idxGroup];
+                if (!gName) return;
+                if (!groups.has(gName)) groups.set(gName, []);
+                groups.get(gName).push({
+                    app_name: row[idxApp] || "",
                     target_ip: row[idxIp] || ""
                 });
             });
 
-            const result = {
-                deploy_groups: Array.from(groupMap).map(([name, apps]) => ({
-                    name: name,
-                    apps: apps
-                }))
+            const obj = {
+                deploy_groups: Array.from(groups).map(([name, apps]) => ({ name, apps }))
             };
 
-            const yamlStr = jsyaml.dump(result, { indent: 2, lineWidth: -1 });
-            outputArea.textContent = yamlStr;
-            lineCount.textContent = `${groupMap.size} groups / ${rows.length} apps`;
+            yamlEditor.value = jsyaml.dump(obj, { indent: 2, lineWidth: -1 });
+            showStatus("已更新 YAML");
         }
 
-        // 视图切换
-        function switchView(mode) {
-            const textView = document.getElementById('textView');
-            const tableView = document.getElementById('tableView');
-            const tabText = document.getElementById('tabText');
-            const tabTable = document.getElementById('tabTable');
+        // --- 6. 逆向同步 (YAML -> State/Table) ---
+        function syncYamlToTable() {
+            const yamlText = yamlEditor.value.trim();
+            if (!yamlText) return;
 
-            if (mode === 'text') {
-                textView.style.display = 'flex';
-                tableView.style.display = 'none';
-                tabText.className = "px-6 py-3 text-sm font-medium transition-all active-tab";
-                tabTable.className = "px-6 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 transition-all";
-            } else {
-                textView.style.display = 'none';
-                tableView.style.display = 'block';
-                tabTable.className = "px-6 py-3 text-sm font-medium transition-all active-tab";
-                tabText.className = "px-6 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 transition-all";
-                renderTable(); // 切换时刷新表格确保一致
-            }
-        }
-
-        function copyYaml() {
-            const code = outputArea.textContent;
-            if (!code) return;
-            navigator.clipboard.writeText(code).then(() => {
-                const btn = document.querySelector('button[onclick="copyYaml()"]');
-                const origin = btn.innerHTML;
-                btn.innerHTML = '✅ 已复制';
-                btn.classList.replace('bg-indigo-600', 'bg-emerald-600');
-                setTimeout(() => {
-                    btn.innerHTML = origin;
-                    btn.classList.replace('bg-emerald-600', 'bg-indigo-600');
-                }, 2000);
-            });
-        }
-
-        async function importYaml() {
             try {
-                // 尝试从剪贴板读取，如果失败则弹出 prompt
-                let yamlText = "";
-                try {
-                    yamlText = await navigator.clipboard.readText();
-                } catch (e) {
-                    yamlText = prompt("无法直接读取剪贴板，请在此粘贴 YAML 内容:");
+                const doc = jsyaml.load(yamlText);
+                if (!doc || !doc.deploy_groups || !Array.isArray(doc.deploy_groups)) {
+                    throw new Error("YAML 格式不符合 deploy_groups 结构");
                 }
 
-                if (!yamlText || !yamlText.trim()) return;
+                // 重建 dataState
+                const newHeaders = ['部署分组', '机器ip', '应用名'];
+                const newRows = [];
 
-                const obj = jsyaml.load(yamlText);
-                if (!obj) throw new Error("无效的 YAML 内容");
-
-                const groups = obj.deploy_groups || obj.deployment_plan; // 支持两种 Key 名
-                if (!groups || !Array.isArray(groups)) {
-                    throw new Error("YAML 结构不正确：未找到 deploy_groups 或 deployment_plan 列表");
-                }
-
-                const headers = ["部署分组", "机器ip", "应用名"];
-                const rows = [];
-
-                groups.forEach(group => {
+                doc.deploy_groups.forEach(group => {
                     const gName = group.name || "未命名分组";
                     if (group.apps && Array.isArray(group.apps)) {
                         group.apps.forEach(app => {
-                            rows.push([
-                                gName,
-                                app.target_ip || "",
-                                app.app_name || ""
-                            ]);
+                            newRows.push([gName, app.target_ip || "", app.app_name || ""]);
                         });
                     }
                 });
 
-                if (rows.length === 0) throw new Error("YAML 中未发现应用配置信息");
+                dataState = [newHeaders, ...newRows];
 
-                dataState = [headers, ...rows];
-                // 同步回文本域
+                // 同步 UI
                 inputArea.value = dataState.map(row => row.join('\t')).join('\n');
-                renderAll();
-
-                // 成功反馈
-                const btn = document.querySelector('button[onclick="importYaml()"]');
-                const origin = btn.innerHTML;
-                btn.innerHTML = '✅ 导入成功';
-                btn.classList.replace('bg-slate-800', 'bg-emerald-600');
-                setTimeout(() => {
-                    btn.innerHTML = origin;
-                    btn.classList.replace('bg-emerald-600', 'bg-slate-800');
-                }, 2000);
-
+                renderTable();
+                showStatus("已从 YAML 反向同步数据");
             } catch (e) {
-                console.error(e);
-                alert("导入失败: " + e.message);
+                alert("逆向同步失败，请检查 YAML 格式: " + e.message);
             }
+        }
+
+        // --- 辅助功能 ---
+        function switchView(mode) {
+            const vTable = document.getElementById('tableView');
+            const vText = document.getElementById('textView');
+            const tTable = document.getElementById('tabTable');
+            const tText = document.getElementById('tabText');
+
+            if (mode === 'table') {
+                vTable.classList.remove('hidden'); vText.classList.add('hidden');
+                tTable.classList.add('active-tab'); tText.classList.remove('active-tab');
+            } else {
+                vTable.classList.add('hidden'); vText.classList.remove('hidden');
+                tText.classList.add('active-tab'); tTable.classList.remove('active-tab');
+            }
+        }
+
+        function showStatus(text) {
+            msgTag.innerText = text;
+            msgTag.style.opacity = 1;
+            setTimeout(() => msgTag.style.opacity = 0, 2000);
+        }
+
+        function copyYaml() {
+            navigator.clipboard.writeText(yamlEditor.value).then(() => showStatus("已复制到剪贴板"));
+        }
+
+        function downloadYaml() {
+            const blob = new Blob([yamlEditor.value], { type: 'text/yaml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'deploy.yml';
+            a.click();
         }
     </script>
 </body>
