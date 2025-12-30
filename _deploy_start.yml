@@ -45,14 +45,29 @@
   - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Check Idempotency"
     shell: |
       if docker inspect {{ item_plan.app_name }} >/dev/null 2>&1; then
-        current_image=$(docker inspect --format='{{ '{{' }}.Image{{ '}}' }}' {{ item_plan.app_name }} | sed 's/sha256://' | cut -c 1-12)
-        target_image_id=$(docker inspect --format='{{ '{{' }}.Id{{ '}}' }}' {{ image_base }} 2>/dev/null | sed 's/sha256://' | cut -c 1-12 || echo "unknown")
+        # 获取容器当前运行的镜像 ID 和 镜像名
+        current_image_id=$(docker inspect --format='{{ '{{' }}.Image{{ '}}' }}' {{ item_plan.app_name }} | sed 's/sha256://' | cut -c 1-12)
+        current_config_image=$(docker inspect --format='{{ '{{' }}.Config.Image{{ '}}' }}' {{ item_plan.app_name }})
         status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ item_plan.app_name }})
-        
-        if [ "$current_image" = "$target_image_id" ] && [ "$status" = "running" ]; then
-          echo "match"
+
+        # 判断配置中是否存在 @hash 短 ID
+        config_image_str="{{ current_app.image | default('') }}"
+        if [[ "$config_image_str" == *"@"* ]]; then
+          # 【精准判断模式】: 提取 @ 后的 hash 进行强制对比
+          target_hash=$(echo "$config_image_str" | cut -d'@' -f2)
+          if [ "$current_image_id" = "$target_hash" ] && [ "$status" = "running" ]; then
+            echo "match"
+          else
+            echo "mismatch"
+          fi
         else
-          echo "mismatch"
+          # 【标准判断模式】: 仅判断镜像名和运行状态
+          target_image_base=$(echo "$config_image_str" | cut -d'@' -f1)
+          if [ "$current_config_image" = "$target_image_base" ] && [ "$status" = "running" ]; then
+            echo "match"
+          else
+            echo "mismatch"
+          fi
         fi
       else
         echo "not_exists"
