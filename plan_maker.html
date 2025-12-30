@@ -1,294 +1,315 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="h-full">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>部署配置转换器 - 专业版</title>
+    <title>DeployYAML Pro - 飞书表格转换器</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;600&display=swap');
+
+        :root {
+            color-scheme: dark;
+        }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8fafc;
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            margin: 0;
+            overflow: hidden;
+            /* 禁止整页滚动 */
+            height: 100vh;
         }
 
         .mono {
             font-family: 'JetBrains Mono', monospace;
         }
 
-        /* 表格模式下的滚动条样式 */
-        .custom-scrollbar::-webkit-scrollbar {
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
         }
 
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f1f1;
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
         }
 
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
             border-radius: 10px;
         }
 
-        /* 模式切换动画 */
-        .mode-transition {
-            transition: all 0.2s ease-in-out;
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
         }
 
-        .hidden-mode {
-            display: none;
+        /* 编辑状态样式 */
+        [contenteditable]:focus {
+            outline: 2px solid #6366f1;
+            background: #1e293b;
+            border-radius: 4px;
+        }
+
+        .active-tab {
+            background-color: #312e81;
+            color: #e0e7ff;
+            border-bottom: 2px solid #6366f1;
+        }
+
+        .panel-height {
+            height: calc(100vh - 64px);
         }
     </style>
 </head>
 
-<body class="py-8 px-6">
-    <div class="max-w-7xl mx-auto">
-        <!-- Header -->
-        <header class="flex justify-between items-end mb-6">
-            <div>
-                <h1 class="text-2xl font-bold text-slate-800">部署配置转换工具</h1>
-                <p class="text-slate-500 text-sm mt-1">支持飞书表格粘贴，自动按分组聚合应用</p>
+<body class="flex flex-col">
+
+    <!-- 顶栏导航 -->
+    <header class="h-16 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                    </path>
+                </svg>
             </div>
-            <div class="flex items-center gap-4 text-xs text-slate-400">
-                <span>当前状态: <span id="statusIndicator" class="text-green-500">等待输入</span></span>
-            </div>
-        </header>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-            <!-- 左侧：数据源区域 -->
-            <div class="flex flex-col gap-4">
-                <div class="flex items-center justify-between">
-                    <!-- 模式切换器 -->
-                    <div class="inline-flex p-1 bg-slate-200 rounded-lg shadow-inner">
-                        <button id="btnTextMode" onclick="switchMode('text')"
-                            class="mode-transition px-4 py-1.5 rounded-md text-sm font-medium bg-white text-slate-800 shadow-sm">
-                            文本模式
-                        </button>
-                        <button id="btnTableMode" onclick="switchMode('table')"
-                            class="mode-transition px-4 py-1.5 rounded-md text-sm font-medium text-slate-600 hover:text-slate-800">
-                            表格模式
-                        </button>
-                    </div>
-                    <span class="text-xs text-slate-400">支持拖拽或粘贴</span>
-                </div>
-
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
-                    <!-- 文本模式编辑器 -->
-                    <div id="textContainer" class="h-[600px]">
-                        <textarea id="inputArea" placeholder="请在此处粘贴飞书表格内容..."
-                            class="w-full h-full p-6 text-sm mono outline-none resize-none bg-slate-50/50"></textarea>
-                    </div>
-
-                    <!-- 表格模式预览 -->
-                    <div id="tableContainer" class="h-[600px] hidden-mode overflow-auto custom-scrollbar p-1">
-                        <table class="w-full text-left text-sm border-collapse">
-                            <thead id="tableHead" class="sticky top-0 bg-white shadow-sm z-10">
-                                <!-- 动态生成表头 -->
-                            </thead>
-                            <tbody id="tableBody" class="divide-y divide-slate-100">
-                                <!-- 动态生成内容 -->
-                            </tbody>
-                        </table>
-                        <div id="tableEmptyState"
-                            class="h-full flex flex-col items-center justify-center text-slate-400 italic">
-                            <svg class="w-12 h-12 mb-2 opacity-20" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path
-                                    d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
-                                </path>
-                            </svg>
-                            暂无有效数据，请先在文本模式粘贴
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 右侧：输出区域 -->
-            <div class="flex flex-col gap-4">
-                <div class="flex items-center justify-between py-1">
-                    <span class="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                        生成结果 (YAML)
-                    </span>
-                    <div class="flex gap-2">
-                        <button onclick="downloadYaml()"
-                            class="text-xs px-3 py-1.5 border border-slate-200 hover:bg-slate-50 rounded-lg font-medium transition-all">
-                            下载文件
-                        </button>
-                        <button onclick="copyYaml()" id="copyBtn"
-                            class="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-md shadow-indigo-100 transition-all">
-                            复制代码
-                        </button>
-                    </div>
-                </div>
-
-                <div class="bg-[#1e293b] rounded-2xl shadow-xl overflow-hidden relative">
-                    <pre id="outputArea"
-                        class="h-[600px] p-6 text-sm mono text-indigo-300 overflow-auto custom-scrollbar leading-relaxed"></pre>
-                </div>
-            </div>
+            <h1 class="text-lg font-semibold tracking-tight">DeployYAML <span
+                    class="text-slate-500 font-normal">Pro</span></h1>
         </div>
-    </div>
+
+        <div class="flex items-center gap-4">
+            <div id="syncStatus" class="text-xs text-slate-500 flex items-center gap-2">
+                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                实时同步中
+            </div>
+            <div class="h-6 w-[1px] bg-slate-800 mx-2"></div>
+            <button onclick="copyYaml()"
+                class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg font-medium transition-all active:scale-95 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">
+                    </path>
+                </svg>
+                复制 YAML
+            </button>
+        </div>
+    </header>
+
+    <!-- 主体区域 -->
+    <main class="flex flex-1 overflow-hidden">
+
+        <!-- 左侧：输入/编辑 -->
+        <section class="w-1/2 border-r border-slate-800 flex flex-col bg-slate-900/50">
+            <!-- 模式切换 -->
+            <div class="flex bg-slate-900 border-b border-slate-800">
+                <button id="tabText" onclick="switchView('text')"
+                    class="px-6 py-3 text-sm font-medium transition-all active-tab">原始文本模式</button>
+                <button id="tabTable" onclick="switchView('table')"
+                    class="px-6 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 transition-all">可视化编辑表格</button>
+            </div>
+
+            <!-- 文本视图 -->
+            <div id="textView" class="flex-1 overflow-hidden flex flex-col">
+                <textarea id="inputArea" placeholder="在此处 Ctrl+V 粘贴飞书表格数据 (需带表头: 部署分组 | 机器ip | 应用名)..."
+                    class="flex-1 w-full p-6 bg-transparent mono text-sm text-slate-300 outline-none resize-none leading-relaxed"></textarea>
+            </div>
+
+            <!-- 表格视图 -->
+            <div id="tableView" class="flex-1 hidden overflow-auto p-4">
+                <table class="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                        <tr id="tableHead"
+                            class="text-slate-400 text-xs uppercase tracking-wider border-b border-slate-700">
+                            <!-- 动态生成 -->
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="text-sm divide-y divide-slate-800 text-slate-300">
+                        <!-- 动态生成 -->
+                    </tbody>
+                </table>
+                <div id="emptyState" class="flex flex-col items-center justify-center py-20 text-slate-600">
+                    <svg class="w-12 h-12 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                    <p>暂无数据，请先在文本模式粘贴</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 右侧：YAML 输出 -->
+        <section class="w-1/2 flex flex-col bg-[#0b1120]">
+            <div
+                class="px-6 py-3 bg-slate-900/80 border-b border-slate-800 text-xs font-semibold text-slate-500 uppercase tracking-widest flex items-center justify-between">
+                输出预览 (YAML 格式)
+                <span id="lineCount" class="text-indigo-400 font-mono">0 groups</span>
+            </div>
+            <div class="flex-1 overflow-auto custom-scrollbar relative">
+                <pre id="outputArea" class="p-8 mono text-sm text-cyan-400 leading-relaxed"></pre>
+            </div>
+        </section>
+    </main>
 
     <script>
         const inputArea = document.getElementById('inputArea');
         const outputArea = document.getElementById('outputArea');
         const tableHead = document.getElementById('tableHead');
         const tableBody = document.getElementById('tableBody');
-        const tableEmptyState = document.getElementById('tableEmptyState');
+        const emptyState = document.getElementById('emptyState');
+        const lineCount = document.getElementById('lineCount');
 
-        let currentData = [];
+        let dataState = []; // 存储当前表格数据 [headers, ...rows]
 
-        // 监听粘贴和输入
-        inputArea.addEventListener('input', update);
-        inputArea.addEventListener('paste', () => setTimeout(update, 10));
+        // 监听输入
+        inputArea.addEventListener('input', () => {
+            parseFromText(inputArea.value);
+        });
 
-        function update() {
-            const rawText = inputArea.value.trim();
-            if (!rawText) {
-                clearDisplay();
+        // 从粘贴板解析
+        inputArea.addEventListener('paste', (e) => {
+            setTimeout(() => parseFromText(inputArea.value), 50);
+        });
+
+        function parseFromText(text) {
+            const raw = text.trim();
+            if (!raw) {
+                dataState = [];
+                renderAll();
                 return;
             }
-            processData(rawText);
+
+            const lines = raw.split(/\r?\n/).filter(l => l.trim() !== '');
+            dataState = lines.map(line => line.split('\t').map(cell => cell.trim().replace(/^"(.*)"$/, '$1')));
+
+            renderAll();
         }
 
-        function processData(text) {
-            try {
-                // 1. 解析 TSV (飞书格式)
-                const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-                const table = lines.map(line => line.split('\t').map(c => c.trim().replace(/^"(.*)"$/, '$1')));
-
-                currentData = table;
-
-                // 2. 更新表格 UI
-                renderTableView(table);
-
-                // 3. 转换并更新 YAML
-                const yaml = convertToYaml(table);
-                outputArea.textContent = yaml;
-
-                document.getElementById('statusIndicator').textContent = "转换成功";
-                document.getElementById('statusIndicator').className = "text-green-500";
-            } catch (e) {
-                outputArea.textContent = "解析失败: " + e.message;
-                document.getElementById('statusIndicator').textContent = "错误";
-                document.getElementById('statusIndicator').className = "text-red-500";
-            }
+        function renderAll() {
+            renderTable();
+            generateYaml();
         }
 
-        function renderTableView(data) {
-            if (data.length === 0) {
-                tableEmptyState.classList.remove('hidden-mode');
+        function renderTable() {
+            if (dataState.length === 0) {
+                tableHead.innerHTML = '';
+                tableBody.innerHTML = '';
+                emptyState.style.display = 'flex';
                 return;
             }
-            tableEmptyState.classList.add('hidden-mode');
+            emptyState.style.display = 'none';
 
-            const headers = data[0];
-            const rows = data.slice(1);
+            const [headers, ...rows] = dataState;
 
             // 渲染表头
-            tableHead.innerHTML = `<tr>${headers.map(h => `
-                <th class="px-6 py-3 border-b border-slate-200 text-slate-600 font-semibold tracking-wider">${h}</th>
-            `).join('')}</tr>`;
+            tableHead.innerHTML = headers.map((h, i) => `
+                <th class="px-4 py-3 font-semibold">${h || '未命名列'}</th>
+            `).join('');
 
             // 渲染行
-            tableBody.innerHTML = rows.map(row => `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    ${row.map(cell => `<td class="px-6 py-3 text-slate-600 border-b border-slate-50">${cell}</td>`).join('')}
+            tableBody.innerHTML = rows.map((row, rowIndex) => `
+                <tr class="hover:bg-slate-800/50 transition-colors">
+                    ${row.map((cell, cellIndex) => `
+                        <td 
+                            contenteditable="true" 
+                            oninput="updateCell(${rowIndex + 1}, ${cellIndex}, this.innerText)"
+                            class="px-4 py-3 border-slate-800 transition-all outline-none"
+                        >${cell}</td>
+                    `).join('')}
                 </tr>
             `).join('');
         }
 
-        function convertToYaml(table) {
-            if (table.length < 2) return "";
+        // 表格单元格编辑回调
+        function updateCell(r, c, value) {
+            dataState[r][c] = value.trim();
+            // 同步回 Textarea (TSV格式)
+            inputArea.value = dataState.map(row => row.join('\t')).join('\n');
+            // 实时生成新 YAML
+            generateYaml();
+        }
 
-            const headers = table[0];
-            const rows = table.slice(1);
+        function generateYaml() {
+            if (dataState.length < 2) {
+                outputArea.textContent = "";
+                lineCount.textContent = "0 groups";
+                return;
+            }
 
-            // 定位索引
+            const headers = dataState[0];
+            const rows = dataState.slice(1);
+
             const idxGroup = headers.findIndex(h => h.includes('部署分组'));
             const idxIp = headers.findIndex(h => h.includes('机器ip'));
             const idxAppName = headers.findIndex(h => h.includes('应用名'));
 
             if (idxGroup === -1 || idxIp === -1 || idxAppName === -1) {
-                return "# 错误：未识别到必要的表头：部署分组 | 机器ip | 应用名";
+                outputArea.textContent = "# 无法生成：请确保表头包含 '部署分组'、'机器ip' 和 '应用名'";
+                return;
             }
 
-            // 聚合逻辑
-            const groups = new Map();
+            const groupMap = new Map();
             rows.forEach(row => {
-                const groupName = row[idxGroup];
-                if (!groupName) return;
-
-                if (!groups.has(groupName)) groups.set(groupName, []);
-                groups.get(groupName).push({
+                const group = row[idxGroup];
+                if (!group) return;
+                if (!groupMap.has(group)) groupMap.set(group, []);
+                groupMap.get(group).push({
                     app_name: row[idxAppName] || "",
                     target_ip: row[idxIp] || ""
                 });
             });
 
             const result = {
-                deploy_groups: Array.from(groups).map(([name, apps]) => ({
+                deploy_groups: Array.from(groupMap).map(([name, apps]) => ({
                     name: name,
                     apps: apps
                 }))
             };
 
-            return jsyaml.dump(result, { indent: 2 });
+            const yamlStr = jsyaml.dump(result, { indent: 2, lineWidth: -1 });
+            outputArea.textContent = yamlStr;
+            lineCount.textContent = `${groupMap.size} groups / ${rows.length} apps`;
         }
 
-        // 模式切换逻辑
-        function switchMode(mode) {
-            const btnText = document.getElementById('btnTextMode');
-            const btnTable = document.getElementById('btnTableMode');
-            const textContainer = document.getElementById('textContainer');
-            const tableContainer = document.getElementById('tableContainer');
+        // 视图切换
+        function switchView(mode) {
+            const textView = document.getElementById('textView');
+            const tableView = document.getElementById('tableView');
+            const tabText = document.getElementById('tabText');
+            const tabTable = document.getElementById('tabTable');
 
             if (mode === 'text') {
-                btnText.className = "mode-transition px-4 py-1.5 rounded-md text-sm font-medium bg-white text-slate-800 shadow-sm";
-                btnTable.className = "mode-transition px-4 py-1.5 rounded-md text-sm font-medium text-slate-600 hover:text-slate-800";
-                textContainer.classList.remove('hidden-mode');
-                tableContainer.classList.add('hidden-mode');
+                textView.style.display = 'flex';
+                tableView.style.display = 'none';
+                tabText.className = "px-6 py-3 text-sm font-medium transition-all active-tab";
+                tabTable.className = "px-6 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 transition-all";
             } else {
-                btnTable.className = "mode-transition px-4 py-1.5 rounded-md text-sm font-medium bg-white text-slate-800 shadow-sm";
-                btnText.className = "mode-transition px-4 py-1.5 rounded-md text-sm font-medium text-slate-600 hover:text-slate-800";
-                textContainer.classList.add('hidden-mode');
-                tableContainer.classList.remove('hidden-mode');
+                textView.style.display = 'none';
+                tableView.style.display = 'block';
+                tabTable.className = "px-6 py-3 text-sm font-medium transition-all active-tab";
+                tabText.className = "px-6 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 transition-all";
+                renderTable(); // 切换时刷新表格确保一致
             }
-        }
-
-        function clearDisplay() {
-            outputArea.textContent = "";
-            tableHead.innerHTML = "";
-            tableBody.innerHTML = "";
-            tableEmptyState.classList.remove('hidden-mode');
-            document.getElementById('statusIndicator').textContent = "等待输入";
         }
 
         function copyYaml() {
             const code = outputArea.textContent;
             if (!code) return;
             navigator.clipboard.writeText(code).then(() => {
-                const btn = document.getElementById('copyBtn');
-                btn.textContent = "已复制！";
-                setTimeout(() => btn.textContent = "复制代码", 2000);
+                const btn = document.querySelector('button[onclick="copyYaml()"]');
+                const origin = btn.innerHTML;
+                btn.innerHTML = '✅ 已复制';
+                btn.classList.replace('bg-indigo-600', 'bg-emerald-600');
+                setTimeout(() => {
+                    btn.innerHTML = origin;
+                    btn.classList.replace('bg-emerald-600', 'bg-indigo-600');
+                }, 2000);
             });
-        }
-
-        function downloadYaml() {
-            const code = outputArea.textContent;
-            if (!code) return;
-            const blob = new Blob([code], { type: 'text/yaml' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'deploy_config.yml';
-            a.click();
-            URL.revokeObjectURL(url);
         }
     </script>
 </body>
