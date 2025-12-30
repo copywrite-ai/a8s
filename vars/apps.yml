@@ -1,58 +1,25 @@
 app_definitions:
-  # 1. 模拟数据库 (单行命令，带健康检查)
+  # Elasticsearch Service (Simulated)
+  es_app:
+    image: nginx:alpine
+    ports:
+      - "9200:80"
+    raw_command: |
+      docker run -d --name es_app -p 9200:80 nginx:alpine
+
+  # Elasticsearch Index Creation (Simulated One-time Job)
+  es_index_task:
+    image: alpine:latest
+    raw_command: |
+      docker run --name es_index_task alpine:latest sh -c "echo 'Creating index...'; sleep 1; echo 'Index created'; exit 0"
+
+  # Other existing apps for comparison...
   db_mysql_demo:
-    image: nginx:alpine
+    image: alpine:latest
     raw_command: |
-      docker run -d \
-      --name db_mysql_demo \
-      --health-cmd="test -f /tmp/db_ready || exit 1" \
-      --health-interval=2s \
-      --health-retries=10 \
-      nginx:alpine \
-      sh -c "rm -f /tmp/db_ready; echo 'Init DB...'; sleep 5; echo 'DB Ready' > /tmp/db_ready; tail -f /dev/null"
+      docker run -d --name db_mysql_demo alpine:latest tail -f /dev/null
 
-  # 2. 模拟复杂应用 (多行脚本模式: Script Mode)
-  app_complex_script:
-    image: nginx:alpine
-    raw_command: |
-      docker run -d --name app_complex_script -p 8085:80 nginx:alpine
-      # 模拟后置初始化逻辑
-      docker exec app_complex_script sh -c "echo 'Production Content' > /usr/share/nginx/html/index.html"
-      docker exec app_complex_script sh -c "mkdir -p /tmp/ready"
-
-  # 3. 模拟链式命令 (Chained Command Mode)
-  app_chained_commands:
-    image: nginx:alpine
-    raw_command: |
-      docker run -d --name app_chained_commands -p 8086:80 nginx:alpine && \
-      docker exec app_chained_commands sh -c "echo 'Chained Success' > /usr/share/nginx/html/index.html" && \
-      docker exec app_chained_commands ls /usr/share/nginx/html/
-
-  # 4. 极致复杂链式命令 (Nested Chained Mode)
-  # 测试点：单个命令内部也在换行 && 整个链条也在换行
-  app_extremely_complex:
-    image: nginx:alpine
-    raw_command: |
-      docker run -d \
-        --name app_extremely_complex \
-        -p 8087:80 \
-        nginx:alpine && \
-      docker exec app_extremely_complex \
-        sh -c "echo 'Extremely Complex Success' > /usr/share/nginx/html/index.html" && \
-      docker exec app_extremely_complex \
-        ls -l /usr/share/nginx/html/
-
-  # 5. 模拟一次性任务 (One-time Job)
   job_data_migration:
     image: alpine:latest
     raw_command: |
-      docker run --name job_data_migration alpine:latest sh -c "echo 'Migration starting...'; sleep 2; echo 'Migration success'; exit 0"
-
-  # 6. SRE 验证命令 (Cmd Type)
-  sre_api_warmer:
-    app_type: cmd
-    command: "curl -s -f http://localhost:8085"
-    healthcheck:
-      type: exit_code
-      retries: 10
-      interval: 3
+      docker run --name job_data_migration alpine:latest sh -c "echo 'Migration starting...'; sleep 1; exit 0"

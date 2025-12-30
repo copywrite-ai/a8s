@@ -1,4 +1,13 @@
 # ==========================================
+# Phase: Variable Reset (Security)
+# ==========================================
+- name: "HealthCheck | Reset app-specific facts"
+  set_fact:
+    container_initial_status: {}
+    healthcheck_type: {}
+    container_status: {}
+
+# ==========================================
 # Phase: Docker Health Check Logic
 # ==========================================
 - block:
@@ -40,7 +49,7 @@
     debug:
       msg: "Container {{ app_name }} has already exited successfully. Skipping health checks."
     delegate_to: "{{ delegate_host }}"
-    when: container_initial_status.stdout.startswith("already_exited_success")
+    when: (container_initial_status.stdout | default('')).startswith("already_exited_success")
 
   # 只对非成功退出的容器执行健康检查
   - block:
@@ -63,7 +72,7 @@
       retries: "{{ retries | default(30) }}"
       delay: "{{ interval | default(5) }}"
       delegate_to: "{{ delegate_host }}"
-      when: healthcheck_type.stdout | trim == "has_healthcheck"
+      when: (healthcheck_type.stdout | default('') | trim) == "has_healthcheck"
 
     - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for one-time container or service"
       shell: |
@@ -83,11 +92,11 @@
       retries: "{{ retries | default(30) }}"
       delay: "{{ interval | default(5) }}"
       delegate_to: "{{ delegate_host }}"
-      when: healthcheck_type.stdout | trim == "no_healthcheck"
+      when: (healthcheck_type.stdout | default('') | trim) == "no_healthcheck"
 
     when: >
-      not container_initial_status.stdout.startswith("already_exited_success") and
-      not container_initial_status.stdout.startswith("already_exited_failed")
+      not (container_initial_status.stdout | default('')).startswith("already_exited_success") and
+      not (container_initial_status.stdout | default('')).startswith("already_exited_failed")
 
   when: app_type | default('docker') == 'docker'
 

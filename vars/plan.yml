@@ -9,16 +9,9 @@ deployment_plan:
       - app_name: job_data_migration
         target_ip: localhost
 
-  - name: "Business Services"
+  - name: "Big Data Service"
     apps:
-      - app_name: app_complex_script
+      - app_name: es_app
         target_ip: localhost
-      - app_name: app_chained_commands
-        target_ip: localhost
-      - app_name: app_extremely_complex
-        target_ip: localhost
-
-  - name: "SRE Verification"
-    apps:
-      - app_name: sre_api_warmer
+      - app_name: es_index_task
         target_ip: localhost
