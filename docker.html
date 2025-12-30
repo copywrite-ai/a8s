@@ -4,265 +4,255 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Docker Web Terminal Pro</title>
-    <!-- Xterm.js 核心文件 -->
-    <link rel="stylesheet" href="./js/xterm.css">
-    <script src="./js/xterm.js"></script>
-    <script src="./js/xterm-addon-fit.js"></script>
-    <script src="./js/tailwindcss.js"></script>
+    <title>Docker Terminal Pro - Ultra</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             background-color: #020617;
+            color: #f1f5f9;
+        }
+
+        #terminal-container {
+            height: calc(100vh - 80px);
         }
 
         .xterm-viewport::-webkit-scrollbar {
             width: 8px;
         }
 
-        .xterm-viewport::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-
         .xterm-viewport::-webkit-scrollbar-thumb {
             background: #334155;
             border-radius: 4px;
         }
-
-        .terminal-container {
-            height: calc(100vh - 120px);
-        }
     </style>
 </head>
 
-<body class="h-full flex flex-col overflow-hidden text-slate-300">
+<body class="h-full flex flex-col overflow-hidden">
 
-    <!-- 顶部状态栏 -->
-    <header class="h-14 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between px-6 shrink-0">
+    <!-- Top Status Bar -->
+    <header class="h-12 border-b border-slate-800 bg-slate-900 flex items-center justify-between px-6 shrink-0">
         <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2">
-                <span class="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_8px_#3b82f6]"></span>
-                <h1 class="font-bold tracking-tight text-slate-100">DOCKER ENGINE <span
-                        class="text-blue-500 font-mono text-sm ml-2">API v1.41</span></h1>
-            </div>
+            <span class="text-blue-500 font-black tracking-tighter text-xl">DOCKER<span
+                    class="text-slate-100">OS</span></span>
             <div class="h-4 w-[1px] bg-slate-700"></div>
-            <div id="connectionStatus" class="text-xs font-mono text-slate-500 italic uppercase">Checking connection...
+            <div id="status-dot" class="flex items-center gap-2 text-[10px] font-mono text-slate-500">
+                <span class="w-2 h-2 bg-emerald-500 rounded-full"></span> SYSTEM READY
             </div>
         </div>
-        <div class="flex items-center gap-6 text-xs font-mono">
-            <div class="flex flex-col items-end">
-                <span class="text-slate-500 uppercase">Endpoint</span>
-                <span class="text-indigo-400">http://localhost:8080</span>
-            </div>
+        <div class="flex gap-4 font-mono text-[10px]">
+            <span id="stat-containers" class="text-slate-400">CONTAINERS: --</span>
+            <span id="stat-images" class="text-slate-400">IMAGES: --</span>
         </div>
     </header>
 
-    <!-- 主交互区域 -->
-    <main class="flex-1 p-4 flex flex-col gap-4 overflow-hidden">
-        <!-- 仪表盘小部件 -->
-        <div class="grid grid-cols-4 gap-4 shrink-0">
-            <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg flex flex-col">
-                <span class="text-[10px] text-slate-500 uppercase font-bold">Containers Running</span>
-                <span id="stat-containers" class="text-2xl font-mono text-emerald-400">--</span>
-            </div>
-            <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg flex flex-col">
-                <span class="text-[10px] text-slate-500 uppercase font-bold">Images Total</span>
-                <span id="stat-images" class="text-2xl font-mono text-blue-400">--</span>
-            </div>
-            <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg flex flex-col">
-                <span class="text-[10px] text-slate-500 uppercase font-bold">Server Version</span>
-                <span id="stat-version" class="text-2xl font-mono text-slate-300">--</span>
-            </div>
-            <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg flex flex-col">
-                <span class="text-[10px] text-slate-500 uppercase font-bold">System Load</span>
-                <span class="text-2xl font-mono text-slate-600 italic">HEALTHY</span>
-            </div>
-        </div>
+    <!-- Terminal -->
+    <main class="flex-1 bg-black p-2">
+        <div id="terminal-container"></div>
+    </main>
 
-        <!-- 终端面板 -->
-        <div class="flex-1 bg-[#020617] border border-slate-800 rounded-xl overflow-hidden shadow-2xl relative group">
-            <div class="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded">WEB-TERMINAL-JS</span>
-            </div>
-            <div id="terminal" class="terminal-container p-2"></div>
-        </div>
-        </header>
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        const PROMPT = '\x1b[1;32m➜\x1b[0m \x1b[1;34m~\x1b[0m ';
+        const CONTINUE_PROMPT = '\x1b[1;30m>\x1b[0m ';
 
-        <script>
-            const API_BASE = 'http://localhost:8080';
-            let currentCommand = '';
-            const prompt = '\x1b[1;32mroot@docker-host\x1b[0m:\x1b[1;34m~\x1b[0m# ';
+        let currentLine = '';
+        let commandBuffer = []; // 用于存储多行输入
 
-            // 1. 初始化终端
-            const term = new Terminal({
-                cursorBlink: true,
-                fontSize: 14,
-                fontFamily: '"JetBrains Mono", Menlo, Monaco, "Courier New", monospace',
-                theme: {
-                    background: '#020617',
-                    foreground: '#cbd5e1',
-                    cursor: '#6366f1',
-                    selectionBackground: '#334155'
-                },
-                allowProposedApi: true
-            });
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: '"JetBrains Mono", "Cascadia Code", monospace',
+            theme: { background: '#000000', foreground: '#e2e8f0' }
+        });
 
-            const fitAddon = new FitAddon.FitAddon();
-            term.loadAddon(fitAddon);
-            term.open(document.getElementById('terminal'));
-            fitAddon.fit();
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        term.open(document.getElementById('terminal-container'));
+        fitAddon.fit();
 
-            term.writeln('\x1b[1;36mDocker Web Console Pro v1.0.0\x1b[0m');
-            term.writeln('Connected to API endpoint: ' + API_BASE);
-            term.writeln('Type \x1b[1;33mhelp\x1b[0m to list supported commands.\n');
-            term.write(prompt);
+        term.writeln('\x1b[1;34mDocker Cloud Terminal v2.0\x1b[0m (Native CLI Simulation)');
+        term.writeln('Support: Multi-line with \\, -ti, --rm, -p, -v, -e, --memory, --privileged, --ulimit\n');
+        term.write(PROMPT);
 
-            // 2. 命令行解析逻辑
-            term.onData(e => {
-                switch (e) {
-                    case '\r': // Enter
-                        term.write('\r\n');
-                        handleCommand(currentCommand);
-                        currentCommand = '';
-                        break;
-                    case '\u007F': // Backspace
-                        if (currentCommand.length > 0) {
-                            currentCommand = currentCommand.slice(0, -1);
-                            term.write('\b \b');
-                        }
-                        break;
-                    default:
-                        if (e >= String.fromCharCode(0x20) && e <= String.fromCharCode(0x7E)) {
-                            currentCommand += e;
-                            term.write(e);
-                        }
+        // 终端输入监听
+        term.onData(data => {
+            if (data === '\r') { // Enter
+                term.write('\r\n');
+                handleLine();
+            } else if (data === '\u007F') { // Backspace
+                if (currentLine.length > 0) {
+                    currentLine = currentLine.slice(0, -1);
+                    term.write('\b \b');
                 }
-            });
+            } else {
+                currentLine += data;
+                term.write(data);
+            }
+        });
 
-            async function handleCommand(cmd) {
-                const trimmedCmd = cmd.trim();
-                if (!trimmedCmd) {
-                    term.write(prompt);
-                    return;
-                }
+        async function handleLine() {
+            const line = currentLine.trim();
 
-                const args = trimmedCmd.split(/\s+/);
-                const action = args[0];
-
-                if (action === 'help') {
-                    term.writeln('Supported Commands:');
-                    term.writeln('  ps             List containers');
-                    term.writeln('  images         List images');
-                    term.writeln('  info           Display system info');
-                    term.writeln('  stop <id>      Stop a container');
-                    term.writeln('  start <id>     Start a container');
-                    term.writeln('  rm <id>        Remove a container');
-                    term.writeln('  clear          Clear terminal');
-                }
-                else if (action === 'clear') {
-                    term.clear();
-                }
-                else if (action === 'ps') {
-                    await fetchDocker('/containers/json?all=1', 'GET', (data) => {
-                        const tableHead = `CONTAINER ID   IMAGE             STATUS            NAMES`;
-                        term.writeln('\x1b[1;34m' + tableHead + '\x1b[0m');
-                        data.forEach(c => {
-                            const id = c.Id.substring(0, 12);
-                            const img = c.Image.substring(0, 15).padEnd(17);
-                            const status = c.Status.padEnd(17);
-                            const names = c.Names[0];
-                            term.writeln(`${id}   ${img}   ${status}   ${names}`);
-                        });
-                    });
-                }
-                else if (action === 'images') {
-                    await fetchDocker('/images/json', 'GET', (data) => {
-                        term.writeln('\x1b[1;34mREPOSITORY        TAG               IMAGE ID       SIZE\x1b[0m');
-                        data.forEach(img => {
-                            const repo = (img.RepoTags ? img.RepoTags[0] : '<none>').padEnd(17);
-                            const id = img.Id.split(':')[1].substring(0, 12);
-                            const size = (img.Size / 1024 / 1024).toFixed(2) + ' MB';
-                            term.writeln(`${repo}   latest            ${id}   ${size}`);
-                        });
-                    });
-                }
-                else if (action === 'stop' || action === 'start' || action === 'rm') {
-                    const containerId = args[1];
-                    if (!containerId) {
-                        term.writeln('\x1b[31mError: Container ID required.\x1b[0m');
-                    } else {
-                        let method = 'POST';
-                        let endpoint = `/containers/${containerId}/${action}`;
-                        if (action === 'rm') {
-                            method = 'DELETE';
-                            endpoint = `/containers/${containerId}`;
-                        }
-                        await fetchDocker(endpoint, method, () => {
-                            term.writeln(`\x1b[32mSuccessfully executed ${action} on ${containerId}\x1b[0m`);
-                        });
-                    }
-                }
-                else if (action === 'info') {
-                    await fetchDocker('/info', 'GET', (data) => {
-                        term.writeln(`OS: ${data.OperatingSystem}`);
-                        term.writeln(`Architecture: ${data.Architecture}`);
-                        term.writeln(`CPUs: ${data.NCPU}`);
-                        term.writeln(`Memory: ${(data.MemTotal / 1024 / 1024 / 1024).toFixed(2)} GB`);
-                    });
-                }
-                else {
-                    term.writeln(`\x1b[31mCommand not found: ${action}\x1b[0m`);
-                }
-
-                term.write('\r\n' + prompt);
-                updateStats();
+            // 检查是否是续行
+            if (line.endsWith('\\')) {
+                commandBuffer.push(line.slice(0, -1).trim());
+                currentLine = '';
+                term.write(CONTINUE_PROMPT);
+                return;
             }
 
-            // 3. API 请求封装
-            async function fetchDocker(path, method = 'GET', callback) {
-                try {
-                    const response = await fetch(`${API_BASE}${path}`, { method });
-                    if (!response.ok) {
-                        const err = await response.text();
-                        term.writeln(`\x1b[31mAPI Error: ${response.status} - ${err}\x1b[0m`);
-                        return;
-                    }
-                    const data = await response.json().catch(() => ({}));
-                    callback(data);
-                } catch (err) {
-                    term.writeln(`\x1b[31mNetwork Error: Cannot connect to Docker API at ${API_BASE}\x1b[0m`);
-                    console.error(err);
-                }
+            // 完整命令拼装
+            commandBuffer.push(line);
+            const fullCommand = commandBuffer.join(' ').trim();
+            commandBuffer = [];
+            currentLine = '';
+
+            if (fullCommand) {
+                await executeDocker(fullCommand);
+            }
+            term.write(PROMPT);
+        }
+
+        async function executeDocker(rawCommand) {
+            const args = splitArgs(rawCommand);
+            const cmd = args[0];
+
+            if (cmd === 'clear') { term.clear(); return; }
+            if (cmd !== 'docker') {
+                term.writeln(`\x1b[31mError: Only 'docker' commands are supported.\x1b[0m`);
+                return;
             }
 
-            // 4. 实时更新顶部状态
-            async function updateStats() {
-                try {
-                    const versionRes = await fetch(`${API_BASE}/version`);
-                    const versionData = await versionRes.json();
-                    document.getElementById('stat-version').innerText = versionData.Version;
-                    document.getElementById('connectionStatus').innerText = "Online";
-                    document.getElementById('connectionStatus').classList.replace('text-slate-500', 'text-emerald-500');
+            const sub = args[1];
+            const params = args.slice(2);
 
-                    const containerRes = await fetch(`${API_BASE}/containers/json`);
-                    const containers = await containerRes.json();
-                    document.getElementById('stat-containers').innerText = containers.length;
-
-                    const imageRes = await fetch(`${API_BASE}/images/json`);
-                    const images = await imageRes.json();
-                    document.getElementById('stat-images').innerText = images.length;
-                } catch (e) {
-                    document.getElementById('connectionStatus').innerText = "Offline";
-                    document.getElementById('connectionStatus').classList.replace('text-emerald-500', 'text-red-500');
-                }
+            switch (sub) {
+                case 'run': await handleRun(params); break;
+                case 'ps': await handlePs(params); break;
+                case 'images': await handleImages(); break;
+                case 'stop': case 'start': case 'rm': await handleLifecycle(sub, params); break;
+                default: term.writeln(`\x1b[31mUnknown sub-command: ${sub}\x1b[0m`);
             }
-
-            // 初始拉取状态
             updateStats();
-            setInterval(updateStats, 10000);
+        }
 
-            // 响应式调整终端大小
-            window.addEventListener('resize', () => fitAddon.fit());
-        </script>
+        // --- 核心：高级参数解析 ---
+        async function handleRun(args) {
+            const config = {
+                Image: "", Name: "", Env: [], Tty: false, OpenStdin: false,
+                HostConfig: {
+                    PortBindings: {}, Binds: [], Memory: 0,
+                    Privileged: false, AutoRemove: false, NetworkMode: "default",
+                    CpuShares: 0, Ulimits: []
+                }
+            };
+
+            for (let i = 0; i < args.length; i++) {
+                const a = args[i];
+                // 1. 基础标志
+                if (a === '-d' || a === '--detach') { /* 默认 API 就是分离的 */ }
+                else if (a === '-ti' || a === '-it') { config.Tty = true; config.OpenStdin = true; }
+                else if (a === '--rm') { config.HostConfig.AutoRemove = true; }
+                else if (a === '--privileged') { config.HostConfig.Privileged = true; }
+                // 2. 带值的参数
+                else if (a === '-e' || a === '--env') config.Env.push(args[++i]);
+                else if (a === '--name') config.Name = args[++i];
+                else if (a === '-p' || a === '--publish') {
+                    const [h, c] = args[++i].split(':');
+                    config.HostConfig.PortBindings[`${c || h}/tcp`] = [{ HostPort: h }];
+                }
+                else if (a === '-v' || a === '--volume') config.HostConfig.Binds.push(args[++i]);
+                else if (a === '--network') config.HostConfig.NetworkMode = args[++i];
+                else if (a === '--memory') config.HostConfig.Memory = parseMem(args[++i]);
+                else if (a === '--cpu') config.HostConfig.CpuShares = parseInt(args[++i]);
+                else if (a === '--ulimit') {
+                    const [name, val] = args[++i].split('=');
+                    const [soft, hard] = val.split(':');
+                    config.HostConfig.Ulimits.push({ Name: name, Soft: parseInt(soft), Hard: parseInt(hard || soft) });
+                }
+                // 3. 镜像名 (第一个不以 - 开头且不是参数值的)
+                else if (!a.startsWith('-')) config.Image = a;
+            }
+
+            if (!config.Image) return term.writeln("\x1b[31mError: No image specified\x1b[0m");
+
+            term.writeln(`\x1b[90mStarting container: ${config.Image}...\x1b[0m`);
+
+            try {
+                // Step 1: Create
+                const url = `${API_BASE}/containers/create${config.Name ? '?name=' + config.Name : ''}`;
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message);
+
+                // Step 2: Start
+                const startRes = await fetch(`${API_BASE}/containers/${data.Id}/start`, { method: 'POST' });
+                if (startRes.ok) term.writeln(`\x1b[32m✔ Container ${data.Id.substring(0, 12)} started.\x1b[0m`);
+                else term.writeln(`\x1b[31m✘ Start failed.\x1b[0m`);
+            } catch (e) {
+                term.writeln(`\x1b[31mDocker API Error: ${e.message}\x1b[0m`);
+            }
+        }
+
+        // --- 辅助工具 ---
+
+        // 处理带引号的参数解析
+        function splitArgs(str) {
+            const re = /[^\s"']+|"([^"]*)"|'([^']*)'/g;
+            const res = [];
+            let match;
+            while ((match = re.exec(str))) res.push(match[1] || match[2] || match[0]);
+            return res;
+        }
+
+        function parseMem(s) {
+            const n = parseInt(s);
+            if (s.endsWith('g')) return n * 1024 * 1024 * 1024;
+            if (s.endsWith('m')) return n * 1024 * 1024;
+            return n;
+        }
+
+        async function handlePs(args) {
+            const res = await fetch(`${API_BASE}/containers/json?all=${args.includes('-a') ? 1 : 0}`);
+            const list = await res.json();
+            term.writeln('\x1b[1;36mID             IMAGE          STATUS         NAMES\x1b[0m');
+            list.forEach(c => term.writeln(`${c.Id.substring(0, 10).padEnd(15)}${c.Image.substring(0, 12).padEnd(15)}${c.Status.padEnd(15)}${c.Names[0]}`));
+        }
+
+        async function handleImages() {
+            const res = await fetch(`${API_BASE}/images/json`);
+            const list = await res.json();
+            term.writeln('\x1b[1;36mREPOSITORY                ID             SIZE\x1b[0m');
+            list.forEach(i => term.writeln(`${(i.RepoTags ? i.RepoTags[0] : '<none>').padEnd(26)}${i.Id.substring(7, 17).padEnd(15)}${(i.Size / 1024 / 1024).toFixed(1)}MB`));
+        }
+
+        async function handleLifecycle(sub, args) {
+            const id = args[0]; if (!id) return;
+            const method = sub === 'rm' ? 'DELETE' : 'POST';
+            const url = `${API_BASE}/containers/${id}${sub === 'rm' ? '' : '/' + sub}`;
+            const res = await fetch(url, { method });
+            term.writeln(res.ok ? `\x1b[32m${sub} ok\x1b[0m` : `\x1b[31m${sub} failed\x1b[0m`);
+        }
+
+        async function updateStats() {
+            try {
+                const c = await (await fetch(`${API_BASE}/containers/json?all=1`)).json();
+                const i = await (await fetch(`${API_BASE}/images/json`)).json();
+                document.getElementById('stat-containers').innerText = `CONTAINERS: ${c.length}`;
+                document.getElementById('stat-images').innerText = `IMAGES: ${i.length}`;
+            } catch (e) { }
+        }
+
+        updateStats();
+        window.onresize = () => fitAddon.fit();
+    </script>
 </body>
 
 </html>
