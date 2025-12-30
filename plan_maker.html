@@ -4,214 +4,291 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>飞书表格转部署 YAML - 专业版</title>
+    <title>部署配置转换器 - 专业版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
 
         body {
-            font-family: 'Inter', system-ui, sans-serif;
-            background-color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
         }
 
         .mono {
             font-family: 'JetBrains Mono', monospace;
         }
 
-        .glass {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(8px);
+        /* 表格模式下的滚动条样式 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        /* 模式切换动画 */
+        .mode-transition {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .hidden-mode {
+            display: none;
         }
     </style>
 </head>
 
-<body class="min-h-screen py-8 px-4">
-    <div class="max-w-6xl mx-auto">
-        <!-- 头部 -->
-        <header class="mb-8 flex items-center justify-between">
+<body class="py-8 px-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="flex justify-between items-end mb-6">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">飞书表格转 YAML <span
-                        class="text-blue-600 text-sm ml-2 font-normal">v2.0 增强版</span></h1>
-                <p class="text-gray-500 text-sm mt-1">支持直接粘贴飞书/Excel/Numbers 带有格式的单元格数据</p>
+                <h1 class="text-2xl font-bold text-slate-800">部署配置转换工具</h1>
+                <p class="text-slate-500 text-sm mt-1">支持飞书表格粘贴，自动按分组聚合应用</p>
             </div>
-            <div class="flex gap-2">
-                <button onclick="clearAll()"
-                    class="px-4 py-2 text-sm text-gray-600 hover:text-red-600 transition-colors">清空重置</button>
+            <div class="flex items-center gap-4 text-xs text-slate-400">
+                <span>当前状态: <span id="statusIndicator" class="text-green-500">等待输入</span></span>
             </div>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- 输入区域 -->
-            <div class="glass p-5 rounded-xl shadow-sm border border-gray-200">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                        <span class="w-2 h-2 bg-blue-500 rounded-full"></span> 粘贴数据源
-                    </span>
-                    <span id="rowCount" class="text-xs text-gray-400">待输入...</span>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <!-- 左侧：数据源区域 -->
+            <div class="flex flex-col gap-4">
+                <div class="flex items-center justify-between">
+                    <!-- 模式切换器 -->
+                    <div class="inline-flex p-1 bg-slate-200 rounded-lg shadow-inner">
+                        <button id="btnTextMode" onclick="switchMode('text')"
+                            class="mode-transition px-4 py-1.5 rounded-md text-sm font-medium bg-white text-slate-800 shadow-sm">
+                            文本模式
+                        </button>
+                        <button id="btnTableMode" onclick="switchMode('table')"
+                            class="mode-transition px-4 py-1.5 rounded-md text-sm font-medium text-slate-600 hover:text-slate-800">
+                            表格模式
+                        </button>
+                    </div>
+                    <span class="text-xs text-slate-400">支持拖拽或粘贴</span>
                 </div>
-                <div class="relative group">
-                    <textarea id="inputArea" placeholder="在此处 Ctrl+V 粘贴飞书表格内容..."
-                        class="w-full h-[500px] p-4 text-sm mono border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"></textarea>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
+                    <!-- 文本模式编辑器 -->
+                    <div id="textContainer" class="h-[600px]">
+                        <textarea id="inputArea" placeholder="请在此处粘贴飞书表格内容..."
+                            class="w-full h-full p-6 text-sm mono outline-none resize-none bg-slate-50/50"></textarea>
+                    </div>
+
+                    <!-- 表格模式预览 -->
+                    <div id="tableContainer" class="h-[600px] hidden-mode overflow-auto custom-scrollbar p-1">
+                        <table class="w-full text-left text-sm border-collapse">
+                            <thead id="tableHead" class="sticky top-0 bg-white shadow-sm z-10">
+                                <!-- 动态生成表头 -->
+                            </thead>
+                            <tbody id="tableBody" class="divide-y divide-slate-100">
+                                <!-- 动态生成内容 -->
+                            </tbody>
+                        </table>
+                        <div id="tableEmptyState"
+                            class="h-full flex flex-col items-center justify-center text-slate-400 italic">
+                            <svg class="w-12 h-12 mb-2 opacity-20" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                                </path>
+                            </svg>
+                            暂无有效数据，请先在文本模式粘贴
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- 输出区域 -->
-            <div class="glass p-5 rounded-xl shadow-sm border border-gray-200">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                        <span class="w-2 h-2 bg-green-500 rounded-full"></span> YAML 结果
+            <!-- 右侧：输出区域 -->
+            <div class="flex flex-col gap-4">
+                <div class="flex items-center justify-between py-1">
+                    <span class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        生成结果 (YAML)
                     </span>
-                    <button onclick="copyYaml()" id="copyBtn"
-                        class="text-xs px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-md font-medium transition-all">
-                        复制 YAML
-                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="downloadYaml()"
+                            class="text-xs px-3 py-1.5 border border-slate-200 hover:bg-slate-50 rounded-lg font-medium transition-all">
+                            下载文件
+                        </button>
+                        <button onclick="copyYaml()" id="copyBtn"
+                            class="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-md shadow-indigo-100 transition-all">
+                            复制代码
+                        </button>
+                    </div>
                 </div>
-                <pre id="outputArea"
-                    class="w-full h-[500px] p-4 text-sm mono bg-gray-900 text-blue-300 rounded-lg overflow-auto border border-gray-800 leading-relaxed"></pre>
+
+                <div class="bg-[#1e293b] rounded-2xl shadow-xl overflow-hidden relative">
+                    <pre id="outputArea"
+                        class="h-[600px] p-6 text-sm mono text-indigo-300 overflow-auto custom-scrollbar leading-relaxed"></pre>
+                </div>
             </div>
         </div>
-
-        <!-- 逻辑说明 -->
-        <footer
-            class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-500 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-                <strong>1. 复制范围：</strong> 选中包含“部署分组”、“机器ip”、“应用名”表头的区域。
-            </div>
-            <div>
-                <strong>2. 自动转换：</strong> 程序会自动过滤多余引号、Tab 键和首尾空格。
-            </div>
-            <div>
-                <strong>3. 结构说明：</strong> 相同部署分组的应用会自动合并到一个数组下。
-            </div>
-        </footer>
     </div>
 
     <script>
         const inputArea = document.getElementById('inputArea');
         const outputArea = document.getElementById('outputArea');
-        const rowCount = document.getElementById('rowCount');
+        const tableHead = document.getElementById('tableHead');
+        const tableBody = document.getElementById('tableBody');
+        const tableEmptyState = document.getElementById('tableEmptyState');
 
-        // 监听粘贴事件，处理飞书特有的格式
-        inputArea.addEventListener('paste', (e) => {
-            // 稍等片刻待 DOM 更新
-            setTimeout(() => {
-                processData(inputArea.value);
-            }, 10);
-        });
+        let currentData = [];
 
-        // 也可以手动修改触发
-        inputArea.addEventListener('input', () => {
-            processData(inputArea.value);
-        });
+        // 监听粘贴和输入
+        inputArea.addEventListener('input', update);
+        inputArea.addEventListener('paste', () => setTimeout(update, 10));
 
-        function processData(rawText) {
-            if (!rawText.trim()) {
-                outputArea.textContent = '';
-                rowCount.textContent = '待输入...';
+        function update() {
+            const rawText = inputArea.value.trim();
+            if (!rawText) {
+                clearDisplay();
                 return;
             }
+            processData(rawText);
+        }
 
+        function processData(text) {
             try {
-                // 1. 将数据拆分为行
-                // 飞书表格复制出的数据通常以 \n 或 \r\n 分隔行
-                const lines = rawText.split(/\r?\n/).filter(line => line.trim() !== '');
+                // 1. 解析 TSV (飞书格式)
+                const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+                const table = lines.map(line => line.split('\t').map(c => c.trim().replace(/^"(.*)"$/, '$1')));
 
-                // 2. 将行拆分为单元格 (飞书复制的核心是 \t 制表符)
-                const tableData = lines.map(line => {
-                    return line.split('\t').map(cell => {
-                        // 清洗单元格：去除前后空格、去除首尾可能存在的引号
-                        return cell.trim().replace(/^"(.*)"$/, '$1');
-                    });
-                });
+                currentData = table;
 
-                if (tableData.length < 2) {
-                    throw new Error('未检测到有效数据行');
-                }
+                // 2. 更新表格 UI
+                renderTableView(table);
 
-                const headers = tableData[0];
-                const rows = tableData.slice(1);
+                // 3. 转换并更新 YAML
+                const yaml = convertToYaml(table);
+                outputArea.textContent = yaml;
 
-                // 3. 动态定位表头索引 (增加容错)
-                const findIndex = (names) => headers.findIndex(h => names.some(n => h.includes(n)));
-
-                const idxGroup = findIndex(['部署分组', '分组', 'group']);
-                const idxIp = findIndex(['机器ip', 'ip', 'IP', 'host']);
-                const idxAppName = findIndex(['应用名', '应用', 'app']);
-
-                if (idxGroup === -1 || idxIp === -1 || idxAppName === -1) {
-                    throw new Error('缺少必要表头：部署分组、机器ip 或 应用名');
-                }
-
-                // 4. 按分组聚合数据
-                const groupMap = new Map();
-
-                rows.forEach(row => {
-                    // 确保这一行有足够的数据
-                    if (row.length <= Math.max(idxGroup, idxIp, idxAppName)) return;
-
-                    const groupName = row[idxGroup];
-                    const targetIp = row[idxIp];
-                    const appName = row[idxAppName];
-
-                    if (!groupName || !targetIp) return; // 跳过无效行
-
-                    if (!groupMap.has(groupName)) {
-                        groupMap.set(groupName, []);
-                    }
-                    groupMap.get(groupName).push({
-                        app_name: appName,
-                        target_ip: targetIp
-                    });
-                });
-
-                // 5. 生成对象结构
-                const result = {
-                    deploy_groups: Array.from(groupMap).map(([name, apps]) => ({
-                        name: name,
-                        apps: apps
-                    }))
-                };
-
-                // 6. 渲染 YAML
-                const yamlOutput = jsyaml.dump(result, {
-                    indent: 2,
-                    noArrayIndent: false,
-                    skipInvalid: true
-                });
-
-                outputArea.textContent = yamlOutput;
-                rowCount.textContent = `成功处理 ${rows.length} 行数据`;
-
-            } catch (err) {
-                outputArea.textContent = `解析错误: ${err.message}\n\n请确保复制的内容包含表头，并尝试重新粘贴。`;
-                rowCount.textContent = '错误';
+                document.getElementById('statusIndicator').textContent = "转换成功";
+                document.getElementById('statusIndicator').className = "text-green-500";
+            } catch (e) {
+                outputArea.textContent = "解析失败: " + e.message;
+                document.getElementById('statusIndicator').textContent = "错误";
+                document.getElementById('statusIndicator').className = "text-red-500";
             }
+        }
+
+        function renderTableView(data) {
+            if (data.length === 0) {
+                tableEmptyState.classList.remove('hidden-mode');
+                return;
+            }
+            tableEmptyState.classList.add('hidden-mode');
+
+            const headers = data[0];
+            const rows = data.slice(1);
+
+            // 渲染表头
+            tableHead.innerHTML = `<tr>${headers.map(h => `
+                <th class="px-6 py-3 border-b border-slate-200 text-slate-600 font-semibold tracking-wider">${h}</th>
+            `).join('')}</tr>`;
+
+            // 渲染行
+            tableBody.innerHTML = rows.map(row => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    ${row.map(cell => `<td class="px-6 py-3 text-slate-600 border-b border-slate-50">${cell}</td>`).join('')}
+                </tr>
+            `).join('');
+        }
+
+        function convertToYaml(table) {
+            if (table.length < 2) return "";
+
+            const headers = table[0];
+            const rows = table.slice(1);
+
+            // 定位索引
+            const idxGroup = headers.findIndex(h => h.includes('部署分组'));
+            const idxIp = headers.findIndex(h => h.includes('机器ip'));
+            const idxAppName = headers.findIndex(h => h.includes('应用名'));
+
+            if (idxGroup === -1 || idxIp === -1 || idxAppName === -1) {
+                return "# 错误：未识别到必要的表头：部署分组 | 机器ip | 应用名";
+            }
+
+            // 聚合逻辑
+            const groups = new Map();
+            rows.forEach(row => {
+                const groupName = row[idxGroup];
+                if (!groupName) return;
+
+                if (!groups.has(groupName)) groups.set(groupName, []);
+                groups.get(groupName).push({
+                    app_name: row[idxAppName] || "",
+                    target_ip: row[idxIp] || ""
+                });
+            });
+
+            const result = {
+                deploy_groups: Array.from(groups).map(([name, apps]) => ({
+                    name: name,
+                    apps: apps
+                }))
+            };
+
+            return jsyaml.dump(result, { indent: 2 });
+        }
+
+        // 模式切换逻辑
+        function switchMode(mode) {
+            const btnText = document.getElementById('btnTextMode');
+            const btnTable = document.getElementById('btnTableMode');
+            const textContainer = document.getElementById('textContainer');
+            const tableContainer = document.getElementById('tableContainer');
+
+            if (mode === 'text') {
+                btnText.className = "mode-transition px-4 py-1.5 rounded-md text-sm font-medium bg-white text-slate-800 shadow-sm";
+                btnTable.className = "mode-transition px-4 py-1.5 rounded-md text-sm font-medium text-slate-600 hover:text-slate-800";
+                textContainer.classList.remove('hidden-mode');
+                tableContainer.classList.add('hidden-mode');
+            } else {
+                btnTable.className = "mode-transition px-4 py-1.5 rounded-md text-sm font-medium bg-white text-slate-800 shadow-sm";
+                btnText.className = "mode-transition px-4 py-1.5 rounded-md text-sm font-medium text-slate-600 hover:text-slate-800";
+                textContainer.classList.add('hidden-mode');
+                tableContainer.classList.remove('hidden-mode');
+            }
+        }
+
+        function clearDisplay() {
+            outputArea.textContent = "";
+            tableHead.innerHTML = "";
+            tableBody.innerHTML = "";
+            tableEmptyState.classList.remove('hidden-mode');
+            document.getElementById('statusIndicator').textContent = "等待输入";
         }
 
         function copyYaml() {
-            const content = outputArea.textContent;
-            if (!content || content.startsWith('解析错误')) return;
-
-            navigator.clipboard.writeText(content).then(() => {
+            const code = outputArea.textContent;
+            if (!code) return;
+            navigator.clipboard.writeText(code).then(() => {
                 const btn = document.getElementById('copyBtn');
-                const oldText = btn.innerText;
-                btn.innerText = '✅ 已复制';
-                btn.classList.replace('bg-blue-50', 'bg-green-100');
-                btn.classList.replace('text-blue-600', 'text-green-700');
-
-                setTimeout(() => {
-                    btn.innerText = oldText;
-                    btn.classList.replace('bg-green-100', 'bg-blue-50');
-                    btn.classList.replace('text-green-700', 'text-blue-600');
-                }, 2000);
+                btn.textContent = "已复制！";
+                setTimeout(() => btn.textContent = "复制代码", 2000);
             });
         }
 
-        function clearAll() {
-            inputArea.value = '';
-            outputArea.textContent = '';
-            rowCount.textContent = '待输入...';
+        function downloadYaml() {
+            const code = outputArea.textContent;
+            if (!code) return;
+            const blob = new Blob([code], { type: 'text/yaml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'deploy_config.yml';
+            a.click();
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>
