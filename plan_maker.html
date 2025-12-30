@@ -88,6 +88,14 @@
                 实时同步中
             </div>
             <div class="h-6 w-[1px] bg-slate-800 mx-2"></div>
+            <button onclick="importYaml()"
+                class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm px-4 py-2 rounded-lg font-medium transition-all active:scale-95 flex items-center gap-2 border border-slate-700">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                </svg>
+                导入 YAML
+            </button>
             <button onclick="copyYaml()"
                 class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-4 py-2 rounded-lg font-medium transition-all active:scale-95 flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -310,6 +318,65 @@
                     btn.classList.replace('bg-emerald-600', 'bg-indigo-600');
                 }, 2000);
             });
+        }
+
+        async function importYaml() {
+            try {
+                // 尝试从剪贴板读取，如果失败则弹出 prompt
+                let yamlText = "";
+                try {
+                    yamlText = await navigator.clipboard.readText();
+                } catch (e) {
+                    yamlText = prompt("无法直接读取剪贴板，请在此粘贴 YAML 内容:");
+                }
+
+                if (!yamlText || !yamlText.trim()) return;
+
+                const obj = jsyaml.load(yamlText);
+                if (!obj) throw new Error("无效的 YAML 内容");
+
+                const groups = obj.deploy_groups || obj.deployment_plan; // 支持两种 Key 名
+                if (!groups || !Array.isArray(groups)) {
+                    throw new Error("YAML 结构不正确：未找到 deploy_groups 或 deployment_plan 列表");
+                }
+
+                const headers = ["部署分组", "机器ip", "应用名"];
+                const rows = [];
+
+                groups.forEach(group => {
+                    const gName = group.name || "未命名分组";
+                    if (group.apps && Array.isArray(group.apps)) {
+                        group.apps.forEach(app => {
+                            rows.push([
+                                gName,
+                                app.target_ip || "",
+                                app.app_name || ""
+                            ]);
+                        });
+                    }
+                });
+
+                if (rows.length === 0) throw new Error("YAML 中未发现应用配置信息");
+
+                dataState = [headers, ...rows];
+                // 同步回文本域
+                inputArea.value = dataState.map(row => row.join('\t')).join('\n');
+                renderAll();
+
+                // 成功反馈
+                const btn = document.querySelector('button[onclick="importYaml()"]');
+                const origin = btn.innerHTML;
+                btn.innerHTML = '✅ 导入成功';
+                btn.classList.replace('bg-slate-800', 'bg-emerald-600');
+                setTimeout(() => {
+                    btn.innerHTML = origin;
+                    btn.classList.replace('bg-emerald-600', 'bg-slate-800');
+                }, 2000);
+
+            } catch (e) {
+                console.error(e);
+                alert("导入失败: " + e.message);
+            }
         }
     </script>
 </body>
