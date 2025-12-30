@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞书表格转部署 YAML 配置</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+    </style>
+</head>
+
+<body class="py-10 px-4">
+    <div class="max-w-5xl mx-auto">
+        <!-- Header -->
+        <div class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-slate-800 mb-2">部署配置转换工具</h1>
+            <p class="text-slate-500">将飞书/Excel 表格数据快速转换为标准的 YAML 部署格式</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Left Column: Input -->
+            <div class="glass-card p-6 rounded-2xl shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <label class="text-sm font-semibold text-slate-700 flex items-center">
+                        <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                            </path>
+                        </svg>
+                        粘贴飞书表格数据
+                    </label>
+                    <span class="text-xs text-slate-400">需包含表头: 部署分组 | 机器ip | 应用名</span>
+                </div>
+                <textarea id="inputArea" placeholder="在此贴入表格内容..."
+                    class="w-full h-[450px] p-4 text-sm font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none bg-slate-50"></textarea>
+                <button onclick="convertData()"
+                    class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl transition-colors shadow-lg shadow-blue-200">
+                    立即转换
+                </button>
+            </div>
+
+            <!-- Right Column: Output -->
+            <div class="glass-card p-6 rounded-2xl shadow-sm flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <label class="text-sm font-semibold text-slate-700 flex items-center">
+                        <svg class="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                        </svg>
+                        YAML 输出
+                    </label>
+                    <button onclick="copyToClipboard()" id="copyBtn"
+                        class="text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center transition-colors">
+                        复制结果
+                    </button>
+                </div>
+                <div class="relative flex-grow">
+                    <pre id="outputArea"
+                        class="w-full h-[450px] p-4 text-sm font-mono bg-slate-900 text-slate-300 rounded-xl overflow-auto border border-slate-800"></pre>
+                </div>
+                <div id="statusMsg" class="mt-4 h-6 text-sm text-center"></div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="mt-8 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
+            <h3 class="text-sm font-semibold text-slate-800 mb-3 uppercase tracking-wider">使用说明</h3>
+            <ul class="text-sm text-slate-600 space-y-2">
+                <li class="flex items-center">
+                    <span
+                        class="w-5 h-5 bg-slate-100 rounded-full flex items-center justify-center text-xs mr-3">1</span>
+                    在飞书中选中表格区域（包含表头：部署分组、机器ip、应用名），按 <kbd
+                        class="px-2 py-1 bg-slate-100 rounded text-xs font-mono">Ctrl+C</kbd> 复制。
+                </li>
+                <li class="flex items-center">
+                    <span
+                        class="w-5 h-5 bg-slate-100 rounded-full flex items-center justify-center text-xs mr-3">2</span>
+                    将内容粘贴到左侧输入框。
+                </li>
+                <li class="flex items-center">
+                    <span
+                        class="w-5 h-5 bg-slate-100 rounded-full flex items-center justify-center text-xs mr-3">3</span>
+                    点击“立即转换”，右侧将自动生成按“部署分组”合并后的 YAML 代码。
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function convertData() {
+            const input = document.getElementById('inputArea').value.trim();
+            const outputElement = document.getElementById('outputArea');
+            const statusMsg = document.getElementById('statusMsg');
+
+            if (!input) {
+                showStatus('请输入数据', 'text-amber-500');
+                return;
+            }
+
+            try {
+                // 1. 解析 Tab 分隔的数据 (飞书/Excel 默认粘贴格式)
+                const rows = input.split('\n').map(row => row.split('\t').map(cell => cell.trim()));
+
+                if (rows.length < 2) {
+                    throw new Error('数据行数不足，请确保包含表头和至少一行数据');
+                }
+
+                const headers = rows[0];
+                const dataRows = rows.slice(1);
+
+                // 2. 自动识别表头索引
+                const idxGroup = headers.indexOf('部署分组');
+                const idxIp = headers.indexOf('机器ip');
+                const idxAppName = headers.indexOf('应用名');
+
+                if (idxGroup === -1 || idxIp === -1 || idxAppName === -1) {
+                    throw new Error('未能识别表头，请确保包含：部署分组、机器ip、应用名');
+                }
+
+                // 3. 数据聚合处理
+                const groupMap = new Map();
+
+                dataRows.forEach((row, index) => {
+                    // 跳过空行
+                    if (row.length < 3 || !row[idxGroup]) return;
+
+                    const groupName = row[idxGroup];
+                    const appObj = {
+                        app_name: row[idxAppName],
+                        target_ip: row[idxIp]
+                    };
+
+                    if (!groupMap.has(groupName)) {
+                        groupMap.set(groupName, []);
+                    }
+                    groupMap.get(groupName).push(appObj);
+                });
+
+                // 4. 构建对象结构
+                const resultObj = {
+                    deploy_groups: Array.from(groupMap).map(([name, apps]) => ({
+                        name: name,
+                        apps: apps
+                    }))
+                };
+
+                // 5. 转换为 YAML
+                const yamlString = jsyaml.dump(resultObj, {
+                    indent: 2,
+                    lineWidth: -1,
+                    noRefs: true
+                });
+
+                outputElement.textContent = yamlString;
+                showStatus('转换成功！', 'text-green-600');
+            } catch (err) {
+                outputElement.textContent = '';
+                showStatus('错误: ' + err.message, 'text-red-500');
+            }
+        }
+
+        function copyToClipboard() {
+            const output = document.getElementById('outputArea').textContent;
+            if (!output) return;
+
+            navigator.clipboard.writeText(output).then(() => {
+                const copyBtn = document.getElementById('copyBtn');
+                const originalText = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<span class="text-green-600">已复制!</span>';
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalText;
+                }, 2000);
+            });
+        }
+
+        function showStatus(msg, colorClass) {
+            const statusMsg = document.getElementById('statusMsg');
+            statusMsg.textContent = msg;
+            statusMsg.className = `mt-4 h-6 text-sm text-center ${colorClass}`;
+        }
+
+        // 监听粘贴事件自动转换
+        document.getElementById('inputArea').addEventListener('input', () => {
+            if (document.getElementById('inputArea').value.length > 10) {
+                convertData();
+            }
+        });
+    </script>
+</body>
+
+</html>
