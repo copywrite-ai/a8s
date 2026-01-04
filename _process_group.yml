@@ -8,6 +8,9 @@
   loop: "{{ group_item.apps }}"
   loop_control:
     loop_var: item_plan
+  when: >
+    only_apps is not defined or 
+    (only_apps.split(',') | map('trim') | list) | intersect([item_plan.app_name]) | length > 0
 
 # Phase 2: Verify all apps in this group
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Group: {{ group_item.name }} | Trigger Health Checks"
@@ -15,3 +18,6 @@
   loop: "{{ group_item.apps }}"
   loop_control:
     loop_var: item_plan
+  when: >
+    only_apps is not defined or 
+    (only_apps.split(',') | map('trim') | list) | intersect([item_plan.app_name]) | length > 0

@@ -51,6 +51,11 @@
       skip_deploy: true
     when: idempotency_check.stdout | default('') == "match"
 
+  - name: "Override Skip Deploy if Force Recreate"
+    set_fact:
+      skip_deploy: false
+    when: force_recreate | default(false) | bool
+
   - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | DEBUG | skip_deploy={{ skip_deploy }}"
     debug:
       msg: "Container already running with correct image. Skipping redeploy."
