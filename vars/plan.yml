@@ -12,6 +12,7 @@ deployment_plan:
         target_ip: localhost
 
   - name: "Business Services"
+    serial: true
     apps:
       - app_name: app_complex_script
         target_ip: localhost

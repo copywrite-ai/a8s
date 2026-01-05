@@ -2,22 +2,35 @@
   debug:
     msg: "Starting deployment for group '{{ group_item.name }}' with {{ group_item.apps | length }} apps."
 
-# Phase 1: Trigger/Start all apps in this group
-- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Group: {{ group_item.name }} | Trigger Start Sequence"
+# Phase 1: Trigger/Start all apps in this group (Batch mode)
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Group: {{ group_item.name }} | Trigger Start Sequence (Batch)"
   include_tasks: _deploy_start.yml
   loop: "{{ group_item.apps }}"
   loop_control:
     loop_var: item_plan
   when: >
-    only_apps is not defined or 
-    (only_apps.split(',') | map('trim') | list) | intersect([item_plan.app_name]) | length > 0
+    (group_item.serial is not defined or not group_item.serial | bool) and
+    (only_apps is not defined or 
+    (only_apps.split(',') | map('trim') | list) | intersect([item_plan.app_name]) | length > 0)
 
-# Phase 2: Verify all apps in this group
-- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Group: {{ group_item.name }} | Trigger Health Checks"
+# Phase 2: Verify all apps in this group (Batch mode)
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Group: {{ group_item.name }} | Trigger Health Checks (Batch)"
   include_tasks: _deploy_verify.yml
   loop: "{{ group_item.apps }}"
   loop_control:
     loop_var: item_plan
   when: >
-    only_apps is not defined or 
-    (only_apps.split(',') | map('trim') | list) | intersect([item_plan.app_name]) | length > 0
+    (group_item.serial is not defined or not group_item.serial | bool) and
+    (only_apps is not defined or 
+    (only_apps.split(',') | map('trim') | list) | intersect([item_plan.app_name]) | length > 0)
+
+# Serial Mode: Start and Verify app by app
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Group: {{ group_item.name }} | Process Apps Serially"
+  include_tasks: _deploy_app_serial.yml
+  loop: "{{ group_item.apps }}"
+  loop_control:
+    loop_var: item_plan
+  when: >
+    (group_item.serial is defined and group_item.serial | bool) and
+    (only_apps is not defined or 
+    (only_apps.split(',') | map('trim') | list) | intersect([item_plan.app_name]) | length > 0)
