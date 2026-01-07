@@ -1,0 +1,16 @@
+image:
+  repository: alpine
+  tag: latest
+  # Current hash in apps.yml: 8764bc580cf9
+  hash: 8764bc580cf9
+
+service:
+  ports: []
+
+env: []
+
+# This matches the raw_command: tail -f /dev/null
+args:
+  - tail
+  - -f
+  - /dev/null

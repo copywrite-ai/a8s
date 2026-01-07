@@ -1,0 +1,20 @@
+image:
+  repository: elasticsearch
+  tag: 7.17.23
+  hash: 5113bca13f4f
+
+service:
+  ports:
+    - port: 9200
+      targetPort: 9200
+
+env:
+  - name: discovery.type
+    value: single-node
+  - name: ES_JAVA_OPTS
+    value: "-Xms512m -Xmx512m"
+
+healthcheck:
+  test: "curl -s http://localhost:9200/_cluster/health | grep -qE 'green|yellow' || exit 1"
+  interval: 10s
+  retries: 20

@@ -1,0 +1,19 @@
+docker run -d --name {{ item_plan.app_name }} --restart always 
+{%- for port in (app_values.service.ports | default([])) %}
+  -p {{ port.nodePort | default(port.port) }}:{{ port.targetPort | default(port.port) }}
+{%- endfor %}
+{%- for e in (app_values.env | default([])) %}
+  -e {{ e.name }}='{{ e.value }}'
+{%- endfor %}
+{%- for m in (app_values.persistence.mounts | default([])) %}
+  -v {{ m.hostPath | default('/opt/ansible_deploy/' + item_plan.app_name + '/materials/' + (m.localPath | basename if m.localPath is defined else 'data')) }}:{{ m.mountPath }}
+{%- endfor %}
+{{ app_values.image.repository }}:{{ app_values.image.tag | default('latest') }}
+{%- if app_values.healthcheck is defined %}
+  --health-cmd="{{ app_values.healthcheck.test | join(' ') if app_values.healthcheck.test is iterable else app_values.healthcheck.test }}"
+  --health-interval={{ app_values.healthcheck.interval | default('30s') }}
+  --health-retries={{ app_values.healthcheck.retries | default(3) }}
+{%- endif %}
+{%- if app_values.args is defined %}
+  {{ app_values.args | join(' ') }}
+{%- endif %}
