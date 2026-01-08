@@ -72,15 +72,23 @@ class CallbackModule(CallbackBase):
         
         body_items.extend(log_lines)
         
+        # Truncate title to avoid border break on small terminals
+        title_text = f" {header_icon} Deploying: {self.active_app} "
+        if len(title_text) > self.console.width - 6:
+            title_text = title_text[:self.console.width-9] + "... "
+
+        subtitle_text = f" {status_text} "
+        if len(subtitle_text) > self.console.width - 6:
+            subtitle_text = subtitle_text[:self.console.width-9] + "... "
+        
         return Panel(
             Group(*body_items),
-            # Integrate "Deploying" directly into the title for a unified look
-            title=Text(f" {header_icon} Deploying: {self.active_app} ", style=f"bold {title_color}"),
-            subtitle=Text(f" {status_text} ", style="grey50"),
+            title=Text(title_text, style=f"bold {title_color}"),
+            subtitle=Text(subtitle_text, style="grey50"),
             border_style=border_color,
             padding=(0, 1),
             title_align="left",
-            expand=True  # Utilize full horizontal space
+            expand=True
         )
 
     def _add_log(self, message):
@@ -166,9 +174,10 @@ class CallbackModule(CallbackBase):
         color = "yellow" if msg == "CHANGED" else "green"
         stdout = res.get('stdout', '').strip()
         if stdout and self.active_app:
-            # Show last line of success output if it's not too long
+            # Show last line of success output if it's not too long for current console
             last_line = stdout.splitlines()[-1]
-            if len(last_line) < 200:
+            limit = max(40, self.console.width - 20)
+            if len(last_line) < limit:
                 self._add_log(f"  [grey37]> {last_line}[/]")
         self._add_log(f"  ✓ [{color}]{msg}[/]")
 
@@ -178,9 +187,8 @@ class CallbackModule(CallbackBase):
 
     def v2_playbook_on_stats(self, stats):
         self._stop_live(is_finished=True)
-        title = "FINISH "
-        width = max(10, self.console.width - len(title) - 1)
-        self.console.print(f"\n[bold grey37]{title}[/][grey37]{'─' * width}[/]")
+        self.console.print("\n")
+        self.console.print(Rule(Text(" FINISH ", style="bold grey37"), style="grey37", align="left"))
 
     def __del__(self):
         self._stop_live(is_finished=False)
