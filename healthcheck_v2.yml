@@ -66,17 +66,22 @@
       changed_when: false
 
     - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for container with healthcheck"
-      shell: "docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' {{ app_name }}"
+      shell: |
+        docker logs --tail 3 {{ app_name }} 2>&1 | sed 's/^/  /'
+        echo "--- DOCKER LOGS ---"
+        docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' {{ app_name }}
       register: health_status
-      until: health_status.stdout | trim == "healthy"
-      retries: "{{ retries | default(30) }}"
-      delay: "{{ interval | default(5) }}"
+      until: health_status.stdout | trim | split('\n') | last == "healthy"
+      retries: "{{ hc_retries | default(30) }}"
+      delay: "{{ hc_interval | default(5) }}"
       delegate_to: "{{ delegate_host }}"
       changed_when: false
       when: (healthcheck_type.stdout | default('') | trim) == "has_healthcheck"
 
     - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for one-time container or service"
       shell: |
+        docker logs --tail 3 {{ app_name }} 2>&1 | sed 's/^/  /'
+        echo "--- DOCKER LOGS ---"
         if docker inspect {{ app_name }} >/dev/null 2>&1; then
           status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ app_name }})
           exit_code=$(docker inspect --format='{{ '{{' }}.State.ExitCode{{ '}}' }}' {{ app_name }})
@@ -89,9 +94,9 @@
           echo "waiting"
         fi
       register: container_status
-      until: container_status.stdout | trim == "success"
-      retries: "{{ retries | default(30) }}"
-      delay: "{{ interval | default(5) }}"
+      until: container_status.stdout | trim | split('\n') | last == "success"
+      retries: "{{ hc_retries | default(30) }}"
+      delay: "{{ hc_interval | default(5) }}"
       delegate_to: "{{ delegate_host }}"
       changed_when: false
       when: (healthcheck_type.stdout | default('') | trim) == "no_healthcheck"
@@ -111,8 +116,8 @@
     delegate_to: "{{ delegate_host }}"
     register: health_cmd_result
     until: health_cmd_result.rc == 0
-    retries: "{{ retries | default(5) }}"
-    delay: "{{ interval | default(2) }}"
+    retries: "{{ hc_retries | default(5) }}"
+    delay: "{{ hc_interval | default(2) }}"
     changed_when: false
 
   when: app_type | default('docker') == 'cmd'

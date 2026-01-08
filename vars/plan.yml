@@ -28,3 +28,5 @@ deployment_plan:
     apps:
       - app_name: sre_api_warmer
         target_ip: localhost
+      - app_name: noisy_logger
+        target_ip: localhost

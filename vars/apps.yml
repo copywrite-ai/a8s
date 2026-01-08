@@ -69,3 +69,16 @@ app_definitions:
       type: exit_code
       retries: 10
       interval: 3
+
+  # 8. 测试滚动日志 (Noisy Logger)
+  noisy_logger:
+    app_type: cmd
+    # 这个命令打印多次
+    command: "sh -c 'for i in $(seq 1 5); do echo \"[$(date +%H:%M:%S)] Phase $i: Analyzing...\"; sleep 1; done'"
+    healthcheck:
+      # 健康检查使用一个会重试的任务
+      type: exit_code
+      # 故意让它失败 5 次，展示滚动效果
+      command: "sh -c 'c=$(cat /tmp/p_cnt 2>/dev/null || echo 0); if [ $c -lt 5 ]; then echo $((c+1)) > /tmp/p_cnt; echo \"[Process] Progress $((c*20))% - Processing data block $c...\"; exit 1; else rm /tmp/p_cnt; echo \"[Done] All blocks processed.\"; exit 0; fi'"
+      retries: 10
+      interval: 1

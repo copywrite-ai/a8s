@@ -10,6 +10,6 @@
     app_name: "{{ item_plan.app_name }}"
     app_type: "{{ current_app.app_type | default('docker') }}"
     delegate_host: "{{ item_plan.target_ip }}"
-    retries: "{{ healthcheck_config.retries | default(30) }}"
-    interval: "{{ healthcheck_config.interval | default(5) }}"
+    hc_retries: "{{ healthcheck_config.retries | default(30) }}"
+    hc_interval: "{{ healthcheck_config.interval | default(5) }}"
     debug_mode: true
