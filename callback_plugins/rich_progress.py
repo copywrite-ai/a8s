@@ -46,8 +46,7 @@ class CallbackModule(CallbackBase):
             except Exception:
                 text = Text(line)
             
-            text.overflow = "ellipsis"
-            text.no_wrap = True
+            # Remove no_wrap to allow natural wrapping, but Panel expand=True will minimize this
             log_lines.append(text)
             
         while len(log_lines) < 10:
@@ -80,7 +79,7 @@ class CallbackModule(CallbackBase):
             border_style=border_color,
             padding=(0, 1),
             title_align="left",
-            expand=True  # Utilize full horizontal space as requested
+            expand=True  # Utilize full horizontal space
         )
 
     def _add_log(self, message):
@@ -97,10 +96,8 @@ class CallbackModule(CallbackBase):
 
     def v2_playbook_on_play_start(self, play):
         name = play.get_name()
-        # Text first, then fill with dashes for perfect left alignment
-        title = f"PLAY [{name}] "
-        width = max(10, self.console.width - len(title) - 1)
-        self.console.print(f"\n[bold grey37]{title}[/][grey37]{'─' * width}[/]")
+        self.console.print("\n")
+        self.console.print(Rule(Text(f"PLAY [{name}]", style="bold grey37"), style="grey37", align="left"))
 
     def v2_playbook_on_task_start(self, task, is_conditional):
         raw_name = task.get_name()
@@ -109,9 +106,9 @@ class CallbackModule(CallbackBase):
         if ctx_type == "GLOBAL":
             self._stop_live(is_finished=True)
             self.active_app = None
-            # Text first, then fill with dashes to align with "Deploying:" and Panels
-            width = max(5, self.console.width - len(raw_name) - 2)
-            self.console.print(f"\n[grey50]{raw_name} [/][grey37]{'─' * width}[/]")
+            self.console.print("\n")
+            # Using Rule with align="left" for perfect alignment and resizability
+            self.console.print(Rule(Text(raw_name, style="grey50"), style="grey37", align="left"))
             
         elif ctx_type == "APP":
             if app != self.active_app:
@@ -140,24 +137,38 @@ class CallbackModule(CallbackBase):
     def v2_runner_retry(self, result):
         res = result._result
         stdout = res.get('stdout', '').strip()
+        attempt = res.get('attempts', '?')
+        
         if "--- DOCKER LOGS ---" in stdout:
             parts = stdout.split("--- DOCKER LOGS ---")
-            msg = parts[-1].strip()
-            logs = parts[0].strip().split('\n')[-2:]
+            # Flatten status_msg to a single line
+            status_msg = parts[-1].strip().replace('\n', ' -> ')
+            logs = parts[0].strip().splitlines()[-3:]
             for l in logs:
                 if l.strip(): self._add_log(f"  [grey37]> {l.strip()}[/]")
+            self._add_log(f"  [grey50]retry({attempt}):[/] {status_msg}")
         else:
-            msg = stdout.split('\n')[-1] if stdout else res.get('msg', 'Retrying...')
-        attempt = res.get('attempts', '?')
-        self._add_log(f"  [grey50]retry({attempt}):[/] {msg}")
+            lines = [l.strip() for l in stdout.splitlines() if l.strip()]
+            if not lines:
+                msg = res.get('msg', 'Retrying...')
+                self._add_log(f"  [grey50]retry({attempt}):[/] {msg}")
+            elif len(lines) == 1:
+                self._add_log(f"  [grey50]retry({attempt}):[/] {lines[0]}")
+            else:
+                # Merge all lines into one for the status line
+                msg = " -> ".join(lines)
+                self._add_log(f"  [grey50]retry({attempt}):[/] {msg}")
 
     def v2_runner_on_ok(self, result):
         res = result._result
         msg = "CHANGED" if res.get('changed') else "OK"
         color = "yellow" if msg == "CHANGED" else "green"
         stdout = res.get('stdout', '').strip()
-        if stdout and self.active_app and len(stdout) < 200:
-            self._add_log(f"  [grey37]> {stdout.splitlines()[-1]}[/]")
+        if stdout and self.active_app:
+            # Show last line of success output if it's not too long
+            last_line = stdout.splitlines()[-1]
+            if len(last_line) < 200:
+                self._add_log(f"  [grey37]> {last_line}[/]")
         self._add_log(f"  ✓ [{color}]{msg}[/]")
 
     def v2_runner_on_failed(self, result, ignore_errors=False):
