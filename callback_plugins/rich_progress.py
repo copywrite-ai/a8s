@@ -74,7 +74,8 @@ class CallbackModule(CallbackBase):
         
         return Panel(
             Group(*body_items),
-            title=Text(f" {header_icon} {self.active_app} ", style=f"bold {title_color}"),
+            # Integrate "Deploying" directly into the title for a unified look
+            title=Text(f" {header_icon} Deploying: {self.active_app} ", style=f"bold {title_color}"),
             subtitle=Text(f" {status_text} ", style="grey50"),
             border_style=border_color,
             padding=(0, 1),
@@ -116,7 +117,7 @@ class CallbackModule(CallbackBase):
                 self.active_app = app
                 self.is_finished = False
                 self.logs.clear()
-                self.console.print(f"\n[grey70]Deploying: {app}[/grey70]")
+                # Removed redundant console.print for a tighter, integrated look
                 # Live will call _render_panel 10 times a second
                 self.live = Live(get_renderable=self._render_panel, console=self.console, refresh_per_second=10, transient=False)
                 self.live.start()
