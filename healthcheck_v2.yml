@@ -111,13 +111,27 @@
 # Phase: CMD/Binary Health Check Logic
 # ==========================================
 - block:
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Verify command"
-    shell: "{{ current_app.health_cmd | default(current_app.command) }}"
-    delegate_to: "{{ delegate_host }}"
-    register: health_cmd_result
-    until: health_cmd_result.rc == 0
-    retries: "{{ hc_retries | default(5) }}"
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ delegate_host }} | {{ app_name }} | HealthCheck | Wait for command and tail logs"
+    shell: |
+      # Tail the log file
+      if [ -f "/tmp/ansible_{{ app_name }}.log" ]; then
+        tail -n 3 "/tmp/ansible_{{ app_name }}.log" | sed 's/^/  /'
+      fi
+      echo "--- DOCKER LOGS ---"
+      
+      # Check if background process is still running
+      pid="{{ cmd_bg_result.stdout | default('') | trim }}"
+      if [ -n "$pid" ] && ps -p "$pid" > /dev/null; then
+        echo "running"
+      else
+        # If not running, check if it was a success or failure (requires health_cmd or just check if it finished)
+        {{ current_app.healthcheck.command | default(current_app.command) }} && echo "success" || echo "failed"
+      fi
+    register: shell_status
+    until: shell_status.stdout | trim | split('\n') | last == "success"
+    retries: "{{ hc_retries | default(30) }}"
     delay: "{{ hc_interval | default(2) }}"
+    delegate_to: "{{ delegate_host }}"
     changed_when: false
 
   when: app_type | default('docker') == 'cmd'

@@ -121,6 +121,8 @@
   - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Run Container"
     shell: "{{ final_run_cmd }}"
     delegate_to: "{{ item_plan.target_ip }}"
+    async: 300
+    poll: 0
     when: not skip_deploy
 
   when: app_type == 'docker'
@@ -129,13 +131,13 @@
 # Phase: CMD/Binary Execution Logic
 # ==========================================
 - block:
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Run Command"
-    shell: "{{ current_app.command }}"
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Run Command (Background)"
+    shell: "nohup {{ current_app.command }} > /tmp/ansible_{{ item_plan.app_name }}.log 2>&1 & echo $!"
     delegate_to: "{{ item_plan.target_ip }}"
-    register: cmd_result
+    register: cmd_bg_result
 
   - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | DEBUG | Command Output"
     debug:
-      msg: "Command exited with {{ cmd_result.rc }}. Output: {{ cmd_result.stdout }}"
+      msg: "Command started with PID {{ cmd_bg_result.stdout | trim }}. Logs at /tmp/ansible_{{ item_plan.app_name }}.log"
 
   when: app_type == 'cmd'

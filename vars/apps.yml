@@ -24,7 +24,7 @@ app_definitions:
   es_index_task:
     image: "alpine:latest@8764bc580cf9"
     raw_command: |
-      docker run --name es_index_task --network host alpine:latest sh -c "
+      docker run -d --name es_index_task --network host alpine:latest sh -c "
         apk add --no-cache curl && \
         echo 'Waiting for ES port...' && \
         until curl -s http://localhost:9200; do sleep 2; done && \
@@ -59,7 +59,7 @@ app_definitions:
   job_data_migration:
     image: "alpine:latest@8764bc580cf9"
     raw_command: |
-      docker run --name job_data_migration alpine:latest sh -c "echo 'Migration starting...'; sleep 1; exit 0"
+      docker run -d --name job_data_migration alpine:latest sh -c "echo 'Migration starting...'; sleep 1; exit 0"
 
   # 7. SRE 验证: 命令探测 (Cmd Type)
   sre_api_warmer:
