@@ -4,6 +4,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.text import Text
 from rich.spinner import Spinner
+from rich.rule import Rule
 from datetime import datetime
 import collections
 import time
@@ -78,7 +79,8 @@ class CallbackModule(CallbackBase):
             subtitle=Text(f" {status_text} ", style="grey50"),
             border_style=border_color,
             padding=(0, 1),
-            title_align="left"
+            title_align="left",
+            expand=True  # Utilize full horizontal space as requested
         )
 
     def _add_log(self, message):
@@ -95,7 +97,10 @@ class CallbackModule(CallbackBase):
 
     def v2_playbook_on_play_start(self, play):
         name = play.get_name()
-        self.console.print(f"\n[grey37]PLAY [{name}][/grey37] {'─' * (max(10, self.console.width - len(name) - 8))}")
+        # Text first, then fill with dashes for perfect left alignment
+        title = f"PLAY [{name}] "
+        width = max(10, self.console.width - len(title) - 1)
+        self.console.print(f"\n[bold grey37]{title}[/][grey37]{'─' * width}[/]")
 
     def v2_playbook_on_task_start(self, task, is_conditional):
         raw_name = task.get_name()
@@ -104,7 +109,9 @@ class CallbackModule(CallbackBase):
         if ctx_type == "GLOBAL":
             self._stop_live(is_finished=True)
             self.active_app = None
-            self.console.print(f"\n[grey50]── {raw_name} ──[/grey50]")
+            # Text first, then fill with dashes to align with "Deploying:" and Panels
+            width = max(5, self.console.width - len(raw_name) - 2)
+            self.console.print(f"\n[grey50]{raw_name} [/][grey37]{'─' * width}[/]")
             
         elif ctx_type == "APP":
             if app != self.active_app:
@@ -159,7 +166,9 @@ class CallbackModule(CallbackBase):
 
     def v2_playbook_on_stats(self, stats):
         self._stop_live(is_finished=True)
-        self.console.print(f"\n[grey37]FINISH {'─' * (max(10, self.console.width - 7))}[/grey37]")
+        title = "FINISH "
+        width = max(10, self.console.width - len(title) - 1)
+        self.console.print(f"\n[bold grey37]{title}[/][grey37]{'─' * width}[/]")
 
     def __del__(self):
         self._stop_live(is_finished=False)
