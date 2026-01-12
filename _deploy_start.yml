@@ -1,9 +1,7 @@
-- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Load config"
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ target_ip }} | {{ app_name }} | Load config"
   set_fact:
-    target_ip: "{{ item_plan.target_ip }}"
-    app_name: "{{ item_plan.app_name }}"
-    current_app: "{{ app_definitions[item_plan.app_name] }}"
-    app_type: "{{ app_definitions[item_plan.app_name].app_type | default('docker') }}"
+    current_app: "{{ app_definitions[app_name] }}"
+    app_type: "{{ app_definitions[app_name].app_type | default('docker') }}"
     healthcheck_config: "{{ current_app.healthcheck | default({}) }}"
     skip_deploy: false
     image_base: "{{ (current_app.image | default('')).split('@')[0] }}"
@@ -13,13 +11,13 @@
 # ==========================================
 - block:
   # 1. 幂等性检查 (先行判断)
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Check Idempotency"
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ target_ip }} | {{ app_name }} | Check Idempotency"
     shell: |
-      if docker inspect {{ item_plan.app_name }} >/dev/null 2>&1; then
+      if docker inspect {{ app_name }} >/dev/null 2>&1; then
         # 获取容器当前运行的镜像 ID 和 镜像名
-        current_image_id=$(docker inspect --format='{{ '{{' }}.Image{{ '}}' }}' {{ item_plan.app_name }} | sed 's/sha256://' | cut -c 1-12)
-        current_config_image=$(docker inspect --format='{{ '{{' }}.Config.Image{{ '}}' }}' {{ item_plan.app_name }})
-        status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ item_plan.app_name }})
+        current_image_id=$(docker inspect --format='{{ '{{' }}.Image{{ '}}' }}' {{ app_name }} | sed 's/sha256://' | cut -c 1-12)
+        current_config_image=$(docker inspect --format='{{ '{{' }}.Config.Image{{ '}}' }}' {{ app_name }})
+        status=$(docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ app_name }})
 
         # 判断配置中是否存在 @hash 短 ID
         config_image_str="{{ current_app.image | default('') }}"
@@ -44,7 +42,7 @@
         echo "not_exists"
       fi
     register: idempotency_check
-    delegate_to: "{{ item_plan.target_ip }}"
+    delegate_to: "{{ target_ip }}"
     changed_when: false
     when: current_app.image is defined
 
@@ -58,18 +56,18 @@
       skip_deploy: false
     when: force_recreate | default(false) | bool
 
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | DEBUG | skip_deploy={{ skip_deploy }}"
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ target_ip }} | {{ app_name }} | DEBUG | skip_deploy={{ skip_deploy }}"
     debug:
       msg: "Container already running with correct image. Skipping redeploy."
     when: skip_deploy
 
   # 2. 物料分发 (仅在非幂等时执行)
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Sync materials"
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ target_ip }} | {{ app_name }} | Sync materials"
     include_tasks: sync_v2.yml
     vars:
       sync_src: "{{ item.src }}"
       sync_dest: "{{ item.dest }}"
-      delegate_host: "{{ item_plan.target_ip }}"
+      delegate_host: "{{ target_ip }}"
     when: 
       - not skip_deploy
       - current_app.materials is defined 
@@ -79,13 +77,13 @@
       loop_var: item
 
   # 3. 准备运行命令
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Prepare Run Command"
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ target_ip }} | {{ app_name }} | Prepare Run Command"
     set_fact:
       final_run_cmd: |
         {% if current_app.raw_command is defined %}
           {{ current_app.raw_command }}
         {% else %}
-          docker run -d --name {{ item_plan.app_name }} --restart always 
+          docker run -d --name {{ app_name }} --restart always 
           {% for port in current_app.ports | default([]) %}-p {{ port }} {% endfor %}
           {% for volume in current_app.volumes | default([]) %}-v {{ volume }} {% endfor %}
           {% for k,v in current_app.env.items() | default({}) %}-e {{ k }}='{{ v }}' {% endfor %}
@@ -100,14 +98,14 @@
     when: not skip_deploy
 
   # 6. 清理与启动 (仅在需要时执行)
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Cleanup old container"
-    shell: "docker rm -f {{ item_plan.app_name }} || true"
-    delegate_to: "{{ item_plan.target_ip }}"
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ target_ip }} | {{ app_name }} | Cleanup old container"
+    shell: "docker rm -f {{ app_name }} || true"
+    delegate_to: "{{ target_ip }}"
     when: not skip_deploy
 
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Run Container"
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ target_ip }} | {{ app_name }} | Run Container"
     shell: "{{ final_run_cmd }}"
-    delegate_to: "{{ item_plan.target_ip }}"
+    delegate_to: "{{ target_ip }}"
     when: not skip_deploy
 
   when: app_type == 'docker'
@@ -116,12 +114,12 @@
 # Phase: CMD/Binary Execution Logic
 # ==========================================
 - block:
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Run Command"
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ target_ip }} | {{ app_name }} | Run Command"
     shell: "{{ current_app.command }}"
-    delegate_to: "{{ item_plan.target_ip }}"
+    delegate_to: "{{ target_ip }}"
     register: cmd_result
 
-  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | DEBUG | Command Output"
+  - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ target_ip }} | {{ app_name }} | DEBUG | Command Output"
     debug:
       msg: "Command exited with {{ cmd_result.rc }}. Output: {{ cmd_result.stdout }}"
 

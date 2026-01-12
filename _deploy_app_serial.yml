@@ -1,5 +1,5 @@
-- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Serial: {{ item_plan.app_name }} | Start App"
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Serial: {{ app_name }} | Start App"
   include_tasks: _deploy_start.yml
 
-- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Serial: {{ item_plan.app_name }} | Verify App"
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Serial: {{ app_name }} | Verify App"
   include_tasks: _deploy_verify.yml

@@ -8,6 +8,9 @@
   loop: "{{ group_item.apps }}"
   loop_control:
     loop_var: item_plan
+  vars:
+    target_ip: "{{ item_plan.target_ip }}"
+    app_name: "{{ item_plan.app_name }}"
   when: >
     (group_item.serial is not defined or not group_item.serial | bool) and
     (only_apps is not defined or 
@@ -19,6 +22,9 @@
   loop: "{{ group_item.apps }}"
   loop_control:
     loop_var: item_plan
+  vars:
+    target_ip: "{{ item_plan.target_ip }}"
+    app_name: "{{ item_plan.app_name }}"
   when: >
     (group_item.serial is not defined or not group_item.serial | bool) and
     (only_apps is not defined or 
@@ -30,6 +36,9 @@
   loop: "{{ group_item.apps }}"
   loop_control:
     loop_var: item_plan
+  vars:
+    target_ip: "{{ item_plan.target_ip }}"
+    app_name: "{{ item_plan.app_name }}"
   when: >
     (group_item.serial is defined and group_item.serial | bool) and
     (only_apps is not defined or 
