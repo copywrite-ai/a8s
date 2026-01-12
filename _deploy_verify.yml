@@ -7,7 +7,7 @@
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ target_ip }} | {{ app_name }} | HealthCheck | Wait for app to be ready"
   include_tasks: healthcheck_v2.yml
   vars:
-    app_name: "{{ app_name }}"
+    # app_name 已经在作用域中，无需重复定义导致递归
     app_type: "{{ current_app.app_type | default('docker') }}"
     delegate_host: "{{ target_ip }}"
     retries: "{{ healthcheck_config.retries | default(30) }}"
