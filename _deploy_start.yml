@@ -1,5 +1,7 @@
 - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | {{ item_plan.target_ip }} | {{ item_plan.app_name }} | Load config"
   set_fact:
+    target_ip: "{{ item_plan.target_ip }}"
+    app_name: "{{ item_plan.app_name }}"
     current_app: "{{ app_definitions[item_plan.app_name] }}"
     app_type: "{{ app_definitions[item_plan.app_name].app_type | default('docker') }}"
     healthcheck_config: "{{ current_app.healthcheck | default({}) }}"
