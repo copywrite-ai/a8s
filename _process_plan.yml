@@ -1,0 +1,9 @@
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Plan: {{ plan_file }} | Loading Plan"
+  include_vars:
+    file: "{{ plan_file }}"
+
+- name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Plan: {{ plan_file }} | Process Deployment Groups (Total Groups: {{ deployment_plan | length }})"
+  include_tasks: _process_group.yml
+  loop: "{{ deployment_plan }}"
+  loop_control:
+    loop_var: group_item

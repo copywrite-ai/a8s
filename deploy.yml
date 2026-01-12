@@ -3,16 +3,18 @@
   gather_facts: false
   vars_files:
     - vars/apps.yml
-    - vars/plan.yml
+
+  vars:
+    plans:
+      - vars/plan.yml
 
   tasks:
-    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Master | Starting Deployment Sequence (Total Groups: {{ deployment_plan | length }})"
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Master | Starting Deployment Sequence"
       debug:
-        msg: "Plan loaded. Starting grouped execution..."
+        msg: "Master Orchestration started. Iterating over plans: {{ plans }}"
 
-    # 循环读取 Group 计划表
-    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Master | Process Deployment Groups"
-      include_tasks: _process_group.yml
-      loop: "{{ deployment_plan }}"
+    - name: "{{ lookup('pipe', 'date +%H:%M:%S') }} | localhost | Master | Process Plans"
+      include_tasks: _process_plan.yml
+      loop: "{{ plans }}"
       loop_control:
-        loop_var: group_item
+        loop_var: plan_file
